@@ -774,8 +774,9 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── 이미지 붙여넣기 (Ctrl+V) ──
   function handlePaste(e){
     if(!sel)return;
-    const items=(e.clipboardData||window.clipboardData)&&(e.clipboardData||window.clipboardData).items;
-    if(!items)return;
+    const cd=(e.clipboardData||window.clipboardData); if(!cd)return;
+    const items=cd.items; if(!items)return;
+    // 1. 이미지 우선
     for(const item of items){
       if(item.type.startsWith('image/')){
         e.preventDefault();
@@ -784,7 +785,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
         reader.onload=ev=>{
           const img=new Image();
           img.onload=()=>{
-            const maxW=Math.max(100, nodes[sel].w-20||200);
+            const maxW=Math.max(100,nodes[sel].w-20||200);
             const scale=Math.min(1,maxW/img.naturalWidth);
             const iw=Math.round(img.naturalWidth*scale);
             const ih=Math.round(img.naturalHeight*scale);
@@ -792,14 +793,25 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
             if(!nodes[sel].images)nodes[sel].images=[];
             nodes[sel].images.push({src:ev.target.result,w:iw,h:ih});
             delete nodes[sel].manualH;
-            nodes[sel].h=nodeH(sel);
-            nodes[sel].w=nodeW(sel);
-            render();
+            nodes[sel].h=nodeH(sel); nodes[sel].w=nodeW(sel); render();
           };
           img.src=ev.target.result;
         };
-        reader.readAsDataURL(blob);
-        return;
+        reader.readAsDataURL(blob); return;
+      }
+    }
+    // 2. Markdown 텍스트 → 노드 변환 (편집 모드 아닐 때)
+    if(!editing){
+      const textItem=[...items].find(i=>i.type==='text/plain');
+      if(textItem){
+        e.preventDefault();
+        textItem.getAsString(text=>{
+          const hasMarkdown=/^[\s]*[-*]\s+|^#{1,6}\s+/m.test(text);
+          if(hasMarkdown){
+            const parsed=parseMarkdown(text);
+            if(parsed.length) pasteMarkdownNodes(parsed);
+          }
+        });
       }
     }
   }
@@ -1294,7 +1306,79 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     lch.forEach(c=>{const h=placeRel(c,n.x-nodeW(c)-HGAP,lcy,'left');lcy+=h+VGAP;});
   }
 
-  // ── 크로스탭 클립보드 ──────────────────────────────────────────
+  // ── Markdown 변환 ──────────────────────────────────────────────
+
+  // 노드 서브트리 → Markdown 텍스트 (들여쓰기 목록 형식)
+  function toMarkdown(id, depth){
+    const n=nodes[id];
+    const indent='  '.repeat(depth);
+    const textLines=(n.text||'').split('\n');
+    const head=`${indent}- ${textLines[0]}`;
+    const cont=textLines.slice(1).map(l=>`${indent}  ${l}`);
+    let md=[head,...cont].join('\n');
+    if(!n.collapsed){
+      const childMd=kids(id).map(c=>toMarkdown(c,depth+1)).join('\n');
+      if(childMd) md+='\n'+childMd;
+    }
+    return md;
+  }
+
+  // Markdown 텍스트 → 노드 데이터 배열 [{id,text,parentId}]
+  function parseMarkdown(text){
+    const result=[], stack=[];
+    const orderMap={};
+    for(const line of text.split('\n')){
+      let depth, nodeText;
+      const listM=line.match(/^(\s*)[-*]\s+(.*)/);
+      const headM=line.match(/^(#{1,6})\s+(.*)/);
+      if(listM){depth=Math.floor(listM[1].length/2); nodeText=listM[2].trim();}
+      else if(headM){depth=headM[1].length-1; nodeText=headM[2].trim();}
+      else continue;
+      if(!nodeText) continue;
+      while(stack.length&&stack[stack.length-1].depth>=depth) stack.pop();
+      const parentId=stack.length?stack[stack.length-1].id:null;
+      const id=nid();
+      result.push({id,text:nodeText,parentId});
+      stack.push({depth,id});
+    }
+    return result;
+  }
+
+  // 파싱된 노드 데이터 → 마인드맵에 삽입
+  function pasteMarkdownNodes(parsed){
+    if(!parsed.length||!sel)return;
+    snap();
+    const targetSide=nodes[sel]?(nodes[sel].side||'right'):'right';
+    const rootOrder=kids(sel).length;
+    const orderMap={};
+    parsed.forEach(({id,text,parentId})=>{
+      const ap=parentId===null?sel:parentId;
+      if(orderMap[ap]===undefined) orderMap[ap]=(ap===sel?rootOrder:0);
+      nodes[id]={text,parentId:ap,side:targetSide,_o:orderMap[ap]++};
+    });
+    sel=parsed[0].id; render(); showSideIndicator('마크다운 붙여넣기됨');
+  }
+
+  // 시스템 클립보드에 텍스트 쓰기 (복사)
+  function writeSystemClipboard(text){
+    try{
+      navigator.clipboard.writeText(text).catch(()=>{
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      });
+    }catch(e){
+      try{
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      }catch(e2){}
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────
   let _clipboard=null;
 
   // localStorage 저장 (이미지가 있으면 용량 초과 방지 위해 이미지 제외 버전으로 재시도)
@@ -1355,7 +1439,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(!sel)return;
     _clipboard=cloneSubtree(sel);
     _clipboard._ts=Date.now();
-    _broadcastClip(_clipboard); _updatePasteBtn(); showSideIndicator('복사됨');
+    _broadcastClip(_clipboard); _updatePasteBtn();
+    // 시스템 클립보드에도 Markdown으로 복사 (다른 앱에 붙여넣기 가능)
+    writeSystemClipboard(toMarkdown(sel,0));
+    showSideIndicator('복사됨 (Markdown)');
   }
 
   function cutNode(){
@@ -1443,16 +1530,24 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     }
   });
 
+  // ── 전역 단축키: 포커스 위치 무관하게 항상 동작 (document capture) ──
+  // 툴바 버튼 클릭 후에도 Ctrl+C/X/V/Z 가 작동하도록 최상위에서 캡처
+  document.addEventListener('keydown', e=>{
+    const ctrl=e.ctrlKey||e.metaKey;
+    if(!ctrl)return;
+    if(editing)return; // 노드 텍스트 편집 중에는 브라우저 기본 동작 유지
+    if(e.key==='z'){e.preventDefault();e.stopPropagation();undo();}
+    else if(e.key==='c'&&sel){e.preventDefault();e.stopPropagation();copyNode();}
+    else if(e.key==='x'&&sel){e.preventDefault();e.stopPropagation();cutNode();}
+    else if(e.key==='v'){
+      if(_clipboard){e.preventDefault();e.stopPropagation();pasteNode();}
+      // clipboard 없으면 paste 이벤트로 위임 (이미지/Markdown 처리)
+    }
+  },true); // capture=true: 포커스가 어디 있든 최우선으로 받음
+
   app.addEventListener('keydown',e=>{
     if(editing)return;
-    if(e.ctrlKey&&e.key==='z'){e.preventDefault();undo();return;}
-    if(e.ctrlKey&&e.key==='c'){e.preventDefault();copyNode();return;}
-    if(e.ctrlKey&&e.key==='x'){e.preventDefault();cutNode();return;}
-    if(e.ctrlKey&&e.key==='v'){
-      // 노드 클립보드 우선, 없으면 paste 이벤트(이미지)로 위임
-      if(_clipboard){e.preventDefault();pasteNode();}
-      return;
-    }
+    if(e.ctrlKey||e.metaKey)return; // Ctrl/Cmd 조합은 위 전역 핸들러에서 처리
     if(e.key==='Enter'&&!e.shiftKey){
       // 선택 상태에서 Enter: 아래에 형제 노드 생성 (유지)
       e.preventDefault(); addSibling(1);
