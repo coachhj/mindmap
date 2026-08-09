@@ -73,19 +73,13 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 .panel-row .row-label{flex:1}
 .panel-row .row-sub{font-size:10px;color:#999;margin-top:1px}
 .panel-divider{border:none;border-top:0.5px solid #eee;margin:6px 0}
-#gdrive-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;display:none;align-items:center;justify-content:center}
-#gdrive-modal-bg.show{display:flex}
-#gdrive-modal{background:#fff;border-radius:14px;padding:24px;width:360px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.18)}
-#gdrive-modal h3{font-size:15px;font-weight:500;margin-bottom:6px;color:#111}
-#gdrive-modal p{font-size:12px;color:#888;margin-bottom:16px;line-height:1.6}
-#gdrive-url-inp{width:100%;border:0.5px solid #ccc;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none;margin-bottom:10px}
-#gdrive-url-inp:focus{border-color:#185FA5}
+#gdrive-status{display:none}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end}
 .modal-btn{background:none;border:0.5px solid rgba(0,0,0,.18);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit}
 .modal-btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
 .modal-btn.primary:hover{background:#0c447c}
 .modal-btn:hover{background:#f0f0ec}
-#gdrive-status{font-size:11px;margin-bottom:10px;min-height:16px;color:#c0392b}
+
 #save-confirm-bg{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:1100;display:none;align-items:center;justify-content:center}
 #save-confirm-bg.show{display:flex}
 #save-confirm-modal{background:#fff;border-radius:14px;padding:26px 24px 20px;width:380px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.18)}
@@ -121,11 +115,11 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <button class="tb" id="btn-cut" onclick="MM.cutNode()"><i class="ti ti-cut" style="font-size:12px"></i> 잘라내기</button>
     <button class="tb" id="btn-paste" onclick="MM.pasteNode()" style="opacity:.4"><i class="ti ti-clipboard" style="font-size:12px"></i> 붙여넣기</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.toggleColorPanel()"><i class="ti ti-palette" style="font-size:12px"></i> 색상</button>
+    <button class="tb" onclick="MM.toggleColorPanel()"><i class="ti ti-sparkles" style="font-size:12px"></i> 모양</button>
     <div class="sep"></div>
     <button class="tb" onclick="MM.optimize()"><i class="ti ti-layout-distribute-vertical" style="font-size:12px"></i> 최적화</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.toggleImportPanel()"><i class="ti ti-upload" style="font-size:12px"></i> 불러오기</button>
+    <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> 불러오기</button>
     <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> 내보내기</button>
   </div>
 
@@ -135,10 +129,17 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <button class="tb" onclick="MM.zoomStep(1)" style="padding:2px 6px;height:22px">+</button>
   </div>
   <div id="hint">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | /: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
-  <div id="copyright">© Dr. Hannjoo Lee, PCC · hannjoo@gmail.com</div>
+  <div id="copyright">© Dr. Hannjoo Lee, KSC/PCC · hannjoo@gmail.com</div>
 
   <div id="color-panel">
-    <div class="panel-title">노드 색상</div>
+    <div class="panel-title">노드 모양</div>
+    <div style="display:flex;gap:5px;margin-bottom:9px;padding-bottom:9px;border-bottom:.5px solid #eee">
+      <button class="tb" id="btn-bold" style="flex:1;font-weight:700;letter-spacing:.3px" onclick="MM.setNodeBold()">굵게</button>
+      <button class="tb" id="btn-fnt-lg" style="flex:1;font-size:14px" onclick="MM.setFontSize('large')">크게</button>
+      <button class="tb" id="btn-fnt-sm" style="flex:1;font-size:10px" onclick="MM.setFontSize('small')">작게</button>
+      <button class="tb" id="btn-fnt-def" style="flex:1;color:#888" onclick="MM.resetFont()">기본</button>
+    </div>
+    <div class="panel-title" style="margin-top:0;margin-bottom:6px">색상</div>
     <div class="swatches" id="swatches"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
       <span style="font-size:11px;color:#888">커스텀</span>
@@ -151,43 +152,11 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     </div>
   </div>
 
-  <div id="import-panel">
-    <div class="panel-title">불러오기</div>
-    <div class="panel-row" onclick="MM.importFromDevice()">
-      <i class="ti ti-device-laptop"></i>
-      <div class="row-label">
-        <div>내 기기에서 열기</div>
-        <div class="row-sub">.mm / .json 파일 지원</div>
-      </div>
-    </div>
-    <hr class="panel-divider">
-    <div class="panel-row" onclick="MM.openGDriveModal()">
-      <i class="ti ti-brand-google-drive"></i>
-      <div class="row-label">
-        <div>구글 드라이브에서 열기</div>
-        <div class="row-sub">공유 링크 또는 파일 ID 입력</div>
-      </div>
-    </div>
-  </div>
-
   <div id="export-panel">
     <div class="panel-title">내보내기</div>
     <div class="panel-row" onclick="MM.exportPNG()"><i class="ti ti-photo"></i><div class="row-label">PNG 이미지</div></div>
-    <div class="panel-row" onclick="MM.exportJSON()"><i class="ti ti-braces"></i><div class="row-label">JSON 데이터</div></div>
-    <div class="panel-row" onclick="MM.exportMM()"><i class="ti ti-file-text"></i><div class="row-label">.mm 파일 (FreeMind 호환)</div></div>
-  </div>
-</div>
-
-<div id="gdrive-modal-bg">
-  <div id="gdrive-modal">
-    <h3>구글 드라이브에서 열기</h3>
-    <p>구글 드라이브 공유 링크 또는 파일 ID를 입력하세요.<br>파일은 <b>링크가 있는 모든 사용자</b> 공유 설정이어야 합니다.</p>
-    <div id="gdrive-status"></div>
-    <input id="gdrive-url-inp" type="text" placeholder="https://drive.google.com/file/d/... 또는 파일 ID">
-    <div class="modal-btns">
-      <button class="modal-btn" onclick="MM.closeGDriveModal()">취소</button>
-      <button class="modal-btn primary" onclick="MM.loadFromGDrive()">불러오기</button>
-    </div>
+    <div class="panel-row" onclick="MM.exportTXT()"><i class="ti ti-file-text"></i><div class="row-label"><div>텍스트 파일 (.txt)</div><div class="row-sub">Markdown 형식으로 저장</div></div></div>
+    <div class="panel-row" onclick="MM.exportMM()"><i class="ti ti-file-code"></i><div class="row-label">.mm 파일 (FreeMind 호환)</div></div>
   </div>
 </div>
 
@@ -244,10 +213,23 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       }).join('');
     }).join('<br>');
   }
+  // 노드 폰트 스펙 (굵기+크기) — bold/fontLg/fontSm 속성 반영
+  function nodeFont(id){
+    const n=nodes[id]; const isRoot=!n.parentId;
+    const weight=n.bold?'700':(isRoot?'500':'400');
+    const base=isRoot?14:13;
+    const size=n.fontLg?(base+3):(n.fontSm?(base-3):base);
+    return `${weight} ${size}px`;
+  }
+
   const _mc=document.createElement('canvas');
   const _mx=_mc.getContext('2d');
-  function mw(text, isRoot){
-    _mx.font=`${isRoot?'500 14px':'400 13px'} -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
+  function mw(text, nodeId){
+    if(typeof nodeId==='string'&&nodes[nodeId]){
+      _mx.font=nodeFont(nodeId)+` -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
+    } else {
+      _mx.font=`${nodeId?'500 14px':'400 13px'} -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
+    }
     const lines=(text||'').split('\n');
     const maxW=Math.max(0,...lines.map(l=>_mx.measureText(l).width));
     return Math.max(64, Math.ceil(maxW)+PADX*2+8);
@@ -315,7 +297,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function nodeW(id){
     const n=nodes[id];
     if(n.manualW!==undefined) return n.manualW;
-    let w=mw(n.text, !n.parentId);
+    let w=mw(n.text, id); // nodeFont(id) 사용으로 bold/size 반영
     if(n.images&&n.images.length){
       n.images.forEach(img=>{ w=Math.max(w,(img.w||180)+20); });
     }
@@ -488,6 +470,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       else el.classList.remove('selected');
       const lbl=el.querySelector('.node-label');
       lbl.innerHTML=textToHTML(n.text);
+      // 폰트 스타일 적용 (bold / fontLg / fontSm)
+      const fspec=nodeFont(id).split(' ');
+      lbl.style.fontWeight=fspec[0];
+      lbl.style.fontSize=fspec[1];
       // 편집 중이면 라벨 숨기기 (이중 텍스트 방지)
       if(editing===id) lbl.classList.add('hidden');
       else lbl.classList.remove('hidden');
@@ -774,8 +760,9 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── 이미지 붙여넣기 (Ctrl+V) ──
   function handlePaste(e){
     if(!sel)return;
-    const items=(e.clipboardData||window.clipboardData)&&(e.clipboardData||window.clipboardData).items;
-    if(!items)return;
+    const cd=(e.clipboardData||window.clipboardData); if(!cd)return;
+    const items=cd.items; if(!items)return;
+    // 1. 이미지 우선
     for(const item of items){
       if(item.type.startsWith('image/')){
         e.preventDefault();
@@ -784,7 +771,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
         reader.onload=ev=>{
           const img=new Image();
           img.onload=()=>{
-            const maxW=Math.max(100, nodes[sel].w-20||200);
+            const maxW=Math.max(100,nodes[sel].w-20||200);
             const scale=Math.min(1,maxW/img.naturalWidth);
             const iw=Math.round(img.naturalWidth*scale);
             const ih=Math.round(img.naturalHeight*scale);
@@ -792,14 +779,25 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
             if(!nodes[sel].images)nodes[sel].images=[];
             nodes[sel].images.push({src:ev.target.result,w:iw,h:ih});
             delete nodes[sel].manualH;
-            nodes[sel].h=nodeH(sel);
-            nodes[sel].w=nodeW(sel);
-            render();
+            nodes[sel].h=nodeH(sel); nodes[sel].w=nodeW(sel); render();
           };
           img.src=ev.target.result;
         };
-        reader.readAsDataURL(blob);
-        return;
+        reader.readAsDataURL(blob); return;
+      }
+    }
+    // 2. Markdown 텍스트 → 노드 변환 (편집 모드 아닐 때)
+    if(!editing){
+      const textItem=[...items].find(i=>i.type==='text/plain');
+      if(textItem){
+        e.preventDefault();
+        textItem.getAsString(text=>{
+          const hasMarkdown=/^[\s]*[-*]\s+|^#{1,6}\s+/m.test(text);
+          if(hasMarkdown){
+            const parsed=parseMarkdown(text);
+            if(parsed.length) pasteMarkdownNodes(parsed);
+          }
+        });
       }
     }
   }
@@ -847,7 +845,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(!editing||!nodes[editing])return;
     nodes[editing].text=inp.value;
     delete nodes[editing].manualH; // 텍스트 변경 시 높이 자동 조절
-    nodes[editing].w=mw(inp.value, !nodes[editing].parentId);
+    nodes[editing].w=mw(inp.value, editing);
     nodes[editing].h=nodeH(editing);
     autoResizeInp();
     renderDOM();
@@ -858,7 +856,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const val=inp.value;
     if(val!==nodes[editing].text){snap();nodes[editing].text=val;}
     delete nodes[editing].manualH; // 텍스트 확정 시 높이 자동 조절
-    nodes[editing].w=mw(val, !nodes[editing].parentId);
+    nodes[editing].w=mw(val, editing);
     nodes[editing].h=nodeH(editing);
     inp.style.display='none'; editing=null; render();
   }
@@ -908,7 +906,18 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function optimize(){
     snap();
-    // 위치만 초기화, 수동으로 조절한 박스 크기(manualW/manualH)는 유지
+    // ── 현재 Y 위치 순서 → _o 업데이트 (사용자가 드래그로 바꾼 순서 보존) ──
+    // 같은 부모를 가진 형제들을 현재 Y 좌표 순으로 정렬해 _o를 재할당
+    const byParent={};
+    Object.keys(nodes).forEach(id=>{
+      const pid=nodes[id].parentId;
+      if(pid){if(!byParent[pid])byParent[pid]=[];byParent[pid].push(id);}
+    });
+    Object.values(byParent).forEach(sibs=>{
+      sibs.sort((a,b)=>(nodes[a].y??0)-(nodes[b].y??0));
+      sibs.forEach((id,i)=>nodes[id]._o=i);
+    });
+    // ── 수동 위치 초기화 후 재배치 (박스 크기 manualW/manualH는 유지) ──
     Object.values(nodes).forEach(n=>{delete n.manualX;delete n.manualY;});
     doLayout();
     Object.keys(nodes).forEach(id=>{const n=nodes[id];n.x=n._ax||0;n.y=n._ay||0;n.w=nodeW(id);n.h=nodeH(id);});
@@ -1033,29 +1042,54 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   window.addEventListener('touchend',e=>{if(e.touches.length<2)_pinch=null;});
 
   function closeAll(){
-    ['color-panel','export-panel','import-panel'].forEach(id=>document.getElementById(id).style.display='none');
+    ['color-panel','export-panel'].forEach(id=>document.getElementById(id).style.display='none');
   }
   function toggleColorPanel(){
     const cp=document.getElementById('color-panel');
     document.getElementById('export-panel').style.display='none';
-    document.getElementById('import-panel').style.display='none';
     const open=cp.style.display==='block';
     cp.style.display=open?'none':'block';
-    if(!open)buildSwatches();
+    if(!open){
+      buildSwatches();
+      // 선택된 노드의 현재 서식 상태를 버튼에 반영
+      const n=sel&&nodes[sel];
+      const bb=document.getElementById('btn-bold');
+      const bl=document.getElementById('btn-fnt-lg');
+      const bs=document.getElementById('btn-fnt-sm');
+      if(bb) bb.style.background=n&&n.bold?'#dce8f5':'';
+      if(bl) bl.style.background=n&&n.fontLg?'#dce8f5':'';
+      if(bs) bs.style.background=n&&n.fontSm?'#dce8f5':'';
+    }
   }
   function toggleExportPanel(fromSaveConfirm){
     const ep=document.getElementById('export-panel');
     document.getElementById('color-panel').style.display='none';
-    document.getElementById('import-panel').style.display='none';
     if(fromSaveConfirm===true){ep.style.display='block';}
     else{ep.style.display=ep.style.display==='block'?'none':'block';}
   }
-  function toggleImportPanel(){
-    const ip=document.getElementById('import-panel');
-    document.getElementById('color-panel').style.display='none';
-    document.getElementById('export-panel').style.display='none';
-    ip.style.display=ip.style.display==='block'?'none':'block';
+  // ── 노드 서식 (굵게 / 크게 / 작게 / 기본) ──
+  function _applyFont(fn){
+    if(!sel)return; snap(); fn(nodes[sel]);
+    nodes[sel].w=nodeW(sel); nodes[sel].h=nodeH(sel); render();
+    // 패널이 열려 있으면 버튼 상태 갱신
+    if(document.getElementById('color-panel').style.display==='block') toggleColorPanel(), toggleColorPanel();
   }
+  function setNodeBold(){_applyFont(n=>{n.bold=!n.bold;});}
+  function setFontSize(sz){_applyFont(n=>{
+    if(sz==='large'){n.fontLg=true; delete n.fontSm;}
+    else{n.fontSm=true; delete n.fontLg;}
+  });}
+  function resetFont(){_applyFont(n=>{delete n.bold;delete n.fontLg;delete n.fontSm;});}
+
+  // ── TXT(Markdown) 내보내기 ──
+  function exportTXT(){
+    closeAll();
+    const fname=safeFilename(nodes[root()].text);
+    const md=toMarkdown(root(),0);
+    download(new Blob([md],{type:'text/plain;charset=utf-8'}),fname+'.txt');
+    isDirty=false; _runPending();
+  }
+
   function buildSwatches(){
     const sw=document.getElementById('swatches'); sw.innerHTML='';
     PALETTE.forEach((c,i)=>{
@@ -1132,40 +1166,6 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     e.target.value='';
   });
 
-  function _openGDrive(){
-    document.getElementById('gdrive-status').textContent='';
-    document.getElementById('gdrive-url-inp').value='';
-    document.getElementById('gdrive-modal-bg').classList.add('show');
-    setTimeout(()=>document.getElementById('gdrive-url-inp').focus(),100);
-  }
-  function openGDriveModal(){
-    closeAll();
-    withSaveCheck(_openGDrive);
-  }
-  function closeGDriveModal(){document.getElementById('gdrive-modal-bg').classList.remove('show');}
-  function extractGDriveId(input){
-    input=input.trim();
-    let m=input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/); if(m)return m[1];
-    m=input.match(/[?&]id=([a-zA-Z0-9_-]+)/); if(m)return m[1];
-    if(/^[a-zA-Z0-9_-]{20,}$/.test(input))return input;
-    return null;
-  }
-  async function loadFromGDrive(){
-    const input=document.getElementById('gdrive-url-inp').value;
-    const statusEl=document.getElementById('gdrive-status');
-    const fileId=extractGDriveId(input);
-    if(!fileId){statusEl.textContent='올바른 구글 드라이브 링크 또는 파일 ID를 입력해주세요.';return;}
-    statusEl.textContent='불러오는 중...'; statusEl.style.color='#185FA5';
-    const directUrl=`https://drive.google.com/uc?export=download&id=${fileId}`;
-    const proxyUrl=`https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
-    let text=null;
-    try{const res=await fetch(directUrl,{signal:AbortSignal.timeout(8000)});if(res.ok){text=await res.text();}}catch(e){}
-    if(!text){try{const res=await fetch(proxyUrl,{signal:AbortSignal.timeout(10000)});if(res.ok){text=await res.text();}}catch(e){}}
-    if(!text){statusEl.textContent='파일을 가져올 수 없어요. 공유 설정을 확인하세요.';statusEl.style.color='#c0392b';return;}
-    if(text.trim().startsWith('<!DOCTYPE')||text.trim().startsWith('<html')){statusEl.textContent='파일에 접근할 수 없어요. "링크가 있는 모든 사용자 → 뷰어"로 설정해주세요.';statusEl.style.color='#c0392b';return;}
-    closeGDriveModal(); loadData(text,'file.mm');
-  }
-
   // ── 내보내기 ──
   function download(blob,filename){
     const url=URL.createObjectURL(blob);
@@ -1209,7 +1209,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       ctx.beginPath(); ctx.roundRect(x,y,n.w,nh,r2); ctx.fillStyle=c.fill; ctx.fill();
       ctx.strokeStyle=c.stroke; ctx.lineWidth=isRoot?1.5:1; ctx.stroke();
       const lines=(n.text||'').split('\n');
-      ctx.fillStyle=c.text; ctx.font=`${isRoot?'500 14px':'400 13px'} -apple-system,sans-serif`;
+      ctx.fillStyle=c.text; ctx.font=nodeFont(id)+' -apple-system,sans-serif';
       ctx.textAlign='left'; ctx.textBaseline='middle';
       const lh=18; const tx2=x+14;
       const th=nodeTextH(id);
@@ -1262,7 +1262,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       if(!ch.length)return `${ind}<node TEXT="${esc(n.text)}"${pos}/>`;
       return `${ind}<node TEXT="${esc(n.text)}"${pos}>\n${ch.map(c=>toXML(c,d+1)).join('\n')}\n${ind}</node>`;
     }
-    download(new Blob([`<map version="1.0.1">\n${toXML(r,0)}\n</map>`],{type:'text/xml'}),fname+'.mm');
+    download(new Blob([`<map version="1.0.1">\n${toXML(r,0)}\n</map>`],{type:'application/octet-stream'}),fname+'.mm');
     isDirty=false; _runPending();
   }
   function _runPending(){
@@ -1294,7 +1294,79 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     lch.forEach(c=>{const h=placeRel(c,n.x-nodeW(c)-HGAP,lcy,'left');lcy+=h+VGAP;});
   }
 
-  // ── 크로스탭 클립보드 ──────────────────────────────────────────
+  // ── Markdown 변환 ──────────────────────────────────────────────
+
+  // 노드 서브트리 → Markdown 텍스트 (들여쓰기 목록 형식)
+  function toMarkdown(id, depth){
+    const n=nodes[id];
+    const indent='  '.repeat(depth);
+    const textLines=(n.text||'').split('\n');
+    const head=`${indent}- ${textLines[0]}`;
+    const cont=textLines.slice(1).map(l=>`${indent}  ${l}`);
+    let md=[head,...cont].join('\n');
+    if(!n.collapsed){
+      const childMd=kids(id).map(c=>toMarkdown(c,depth+1)).join('\n');
+      if(childMd) md+='\n'+childMd;
+    }
+    return md;
+  }
+
+  // Markdown 텍스트 → 노드 데이터 배열 [{id,text,parentId}]
+  function parseMarkdown(text){
+    const result=[], stack=[];
+    const orderMap={};
+    for(const line of text.split('\n')){
+      let depth, nodeText;
+      const listM=line.match(/^(\s*)[-*]\s+(.*)/);
+      const headM=line.match(/^(#{1,6})\s+(.*)/);
+      if(listM){depth=Math.floor(listM[1].length/2); nodeText=listM[2].trim();}
+      else if(headM){depth=headM[1].length-1; nodeText=headM[2].trim();}
+      else continue;
+      if(!nodeText) continue;
+      while(stack.length&&stack[stack.length-1].depth>=depth) stack.pop();
+      const parentId=stack.length?stack[stack.length-1].id:null;
+      const id=nid();
+      result.push({id,text:nodeText,parentId});
+      stack.push({depth,id});
+    }
+    return result;
+  }
+
+  // 파싱된 노드 데이터 → 마인드맵에 삽입
+  function pasteMarkdownNodes(parsed){
+    if(!parsed.length||!sel)return;
+    snap();
+    const targetSide=nodes[sel]?(nodes[sel].side||'right'):'right';
+    const rootOrder=kids(sel).length;
+    const orderMap={};
+    parsed.forEach(({id,text,parentId})=>{
+      const ap=parentId===null?sel:parentId;
+      if(orderMap[ap]===undefined) orderMap[ap]=(ap===sel?rootOrder:0);
+      nodes[id]={text,parentId:ap,side:targetSide,_o:orderMap[ap]++};
+    });
+    sel=parsed[0].id; render(); showSideIndicator('마크다운 붙여넣기됨');
+  }
+
+  // 시스템 클립보드에 텍스트 쓰기 (복사)
+  function writeSystemClipboard(text){
+    try{
+      navigator.clipboard.writeText(text).catch(()=>{
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      });
+    }catch(e){
+      try{
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      }catch(e2){}
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────
   let _clipboard=null;
 
   // localStorage 저장 (이미지가 있으면 용량 초과 방지 위해 이미지 제외 버전으로 재시도)
@@ -1355,7 +1427,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(!sel)return;
     _clipboard=cloneSubtree(sel);
     _clipboard._ts=Date.now();
-    _broadcastClip(_clipboard); _updatePasteBtn(); showSideIndicator('복사됨');
+    _broadcastClip(_clipboard); _updatePasteBtn();
+    // 시스템 클립보드에도 Markdown으로 복사 (다른 앱에 붙여넣기 가능)
+    writeSystemClipboard(toMarkdown(sel,0));
+    showSideIndicator('복사됨 (Markdown)');
   }
 
   function cutNode(){
@@ -1426,7 +1501,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       inp.selectionStart=inp.selectionEnd=start+1;
       nodes[editing].text=inp.value;
       nodes[editing].h=nodeH(editing);
-      nodes[editing].w=mw(inp.value, !nodes[editing].parentId);
+      nodes[editing].w=mw(inp.value, editing);
       autoResizeInp(); renderDOM();
     }
     else if(e.key==='Enter'){
@@ -1443,16 +1518,24 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     }
   });
 
+  // ── 전역 단축키: 포커스 위치 무관하게 항상 동작 (document capture) ──
+  // 툴바 버튼 클릭 후에도 Ctrl+C/X/V/Z 가 작동하도록 최상위에서 캡처
+  document.addEventListener('keydown', e=>{
+    const ctrl=e.ctrlKey||e.metaKey;
+    if(!ctrl)return;
+    if(editing)return; // 노드 텍스트 편집 중에는 브라우저 기본 동작 유지
+    if(e.key==='z'){e.preventDefault();e.stopPropagation();undo();}
+    else if(e.key==='c'&&sel){e.preventDefault();e.stopPropagation();copyNode();}
+    else if(e.key==='x'&&sel){e.preventDefault();e.stopPropagation();cutNode();}
+    else if(e.key==='v'){
+      if(_clipboard){e.preventDefault();e.stopPropagation();pasteNode();}
+      // clipboard 없으면 paste 이벤트로 위임 (이미지/Markdown 처리)
+    }
+  },true); // capture=true: 포커스가 어디 있든 최우선으로 받음
+
   app.addEventListener('keydown',e=>{
     if(editing)return;
-    if(e.ctrlKey&&e.key==='z'){e.preventDefault();undo();return;}
-    if(e.ctrlKey&&e.key==='c'){e.preventDefault();copyNode();return;}
-    if(e.ctrlKey&&e.key==='x'){e.preventDefault();cutNode();return;}
-    if(e.ctrlKey&&e.key==='v'){
-      // 노드 클립보드 우선, 없으면 paste 이벤트(이미지)로 위임
-      if(_clipboard){e.preventDefault();pasteNode();}
-      return;
-    }
+    if(e.ctrlKey||e.metaKey)return; // Ctrl/Cmd 조합은 위 전역 핸들러에서 처리
     if(e.key==='Enter'&&!e.shiftKey){
       // 선택 상태에서 Enter: 아래에 형제 노드 생성 (유지)
       e.preventDefault(); addSibling(1);
@@ -1479,8 +1562,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   },true);
 
   document.getElementById('btn-undo').addEventListener('click',undo);
-  document.getElementById('gdrive-modal-bg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeGDriveModal();});
-  document.getElementById('gdrive-url-inp').addEventListener('keydown',e=>{if(e.key==='Enter')loadFromGDrive();});
+  // (gdrive 모달 제거됨)
 
   // 브라우저 닫기/새로고침 시 저장 확인
   window.addEventListener('beforeunload',e=>{
@@ -1489,10 +1571,11 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   window.MM={addChild,addChildLeft,addSibling,deleteNode,startEdit,
     copyNode,cutNode,pasteNode,toggleCollapse,
-    toggleColorPanel,toggleImportPanel,toggleExportPanel,
+    setNodeBold,setFontSize,resetFont,
+    toggleColorPanel,toggleExportPanel,
     applyCustomColor,applyColorSubtree,resetColor,
-    importFromDevice,openGDriveModal,closeGDriveModal,loadFromGDrive,
-    exportPNG,exportJSON,exportMM,zoomStep,fitView,optimize};
+    importFromDevice,
+    exportPNG,exportTXT,exportMM,exportJSON,zoomStep,fitView,optimize};
   window.SC=SC;
 
   const r=nid();
