@@ -134,19 +134,12 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <div class="sep"></div>
     <button class="tb" onclick="MM.optimize()"><i class="ti ti-layout-distribute-vertical" style="font-size:12px"></i> optimize</button>
     <div class="sep"></div>
-<<<<<<< HEAD
     <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> import</button>
     <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> export</button>
     <div class="sep"></div>
     <button class="tb" onclick="MM.toggleGithubPanel()"><i class="ti ti-brand-github" style="font-size:12px"></i> GitHub</button>
     <div class="sep"></div>
     <button class="tb" id="btn-layout" onclick="MM.toggleToolbarLayout()" title="메뉴 위치 전환"><i class="ti ti-layout-sidebar-left-expand" id="btn-layout-icon" style="font-size:12px"></i></button>
-=======
-    <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> 불러오기</button>
-    <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> 내보내기</button>
-    <div class="sep"></div>
-    <button class="tb" onclick="MM.toggleGithubPanel()"><i class="ti ti-brand-github" style="font-size:12px"></i> GitHub</button>
->>>>>>> a9643e63543b018fe2948512d42de25386b1cf3f
   </div>
 
   <div id="zoom-bar">
@@ -1089,7 +1082,6 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function closeAll(){
     ['color-panel','export-panel','github-panel'].forEach(id=>document.getElementById(id).style.display='none');
-<<<<<<< HEAD
   }
   const TB_LAYOUT_KEY='mmToolbarVertical';
   function applyToolbarLayout(vertical){
@@ -1103,8 +1095,6 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const vertical=!tb.classList.contains('vertical');
     applyToolbarLayout(vertical);
     try{localStorage.setItem(TB_LAYOUT_KEY,vertical?'1':'0');}catch(e){}
-=======
->>>>>>> a9643e63543b018fe2948512d42de25386b1cf3f
   }
   function toggleColorPanel(){
     const cp=document.getElementById('color-panel');
@@ -1835,11 +1825,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     applyCustomColor,applyColorSubtree,resetColor,
     importFromDevice,
     exportPNG,exportTXT,exportMM,exportJSON,zoomStep,fitView,optimize,
-<<<<<<< HEAD
     ghSaveConfig,ghSaveCurrent,ghSaveAs,ghShowList,toggleToolbarLayout};
-=======
-    ghSaveConfig,ghSaveCurrent,ghSaveAs,ghShowList};
->>>>>>> a9643e63543b018fe2948512d42de25386b1cf3f
   window.SC=SC;
 
   try{applyToolbarLayout(localStorage.getItem(TB_LAYOUT_KEY)==='1');}catch(e){}
