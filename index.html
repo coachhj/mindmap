@@ -48,7 +48,12 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 .rh-w{top:50%;left:-5px;transform:translateY(-50%);cursor:w-resize}
 .rh-e{top:50%;right:-5px;transform:translateY(-50%);cursor:e-resize}
 .node-el.selected .rh{display:block}
-#toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:3px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:5px 8px;z-index:100;align-items:center;flex-wrap:wrap;max-width:calc(100% - 16px);box-shadow:0 1px 6px rgba(0,0,0,.06)}
+#toolbar{position:absolute;top:12px;left:8px;right:8px;display:flex;gap:3px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:5px 8px;z-index:100;align-items:center;flex-wrap:wrap;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+#toolbar.vertical{top:12px;left:8px;right:auto;bottom:12px;width:auto;flex-direction:column;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;overflow-y:auto}
+#toolbar.vertical .tb{width:100%;justify-content:flex-start}
+#toolbar.vertical .sep{width:100%;height:.5px;margin:2px 0}
+#btn-layout{margin-left:auto}
+#toolbar.vertical #btn-layout{margin-left:0;margin-top:auto}
 .tb{background:none;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;padding:3px 8px;font-size:11px;color:#555;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap;height:26px;font-family:inherit}
 .tb:hover{background:#f0f0ec;color:#111}
 .tb.danger{color:#c0392b;border-color:#e8b4b0}.tb.danger:hover{background:#fdf0ef}
@@ -56,7 +61,6 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 .sep{width:.5px;height:18px;background:rgba(0,0,0,0.1);margin:0 2px}
 #zoom-bar{position:absolute;bottom:14px;right:14px;display:flex;align-items:center;gap:6px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:4px 10px;z-index:100;box-shadow:0 1px 6px rgba(0,0,0,.06)}
 #zoom-lbl{min-width:34px;text-align:center;font-size:11px;color:#666}
-#hint{position:absolute;bottom:14px;left:14px;font-size:10px;color:#999;background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:3px 10px;pointer-events:none;z-index:100}
 #copyright{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:9px;color:#b3b3b3;pointer-events:none;z-index:90;white-space:nowrap;letter-spacing:.2px}
 #side-indicator{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;font-family:inherit;color:#185FA5;background:#e8f1fb;border:0.5px solid #90b8e8;border-radius:8px;padding:5px 16px;z-index:500;display:none;pointer-events:none}
 #color-panel,#export-panel,#import-panel,#github-panel{position:absolute;top:50px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:10px 12px;z-index:200;display:none;box-shadow:0 2px 12px rgba(0,0,0,.08)}
@@ -112,29 +116,37 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   <div id="side-indicator"></div>
 
   <div id="toolbar">
-    <button class="tb" id="btn-undo" title="Ctrl+Z"><i class="ti ti-arrow-back-up" style="font-size:13px"></i> 취소</button>
+    <button class="tb" id="btn-undo" title="Ctrl+Z"><i class="ti ti-arrow-back-up" style="font-size:13px"></i> cancel</button>
     <div class="sep"></div>
-    <button class="tb accent" onclick="MM.addChildLeft()"><i class="ti ti-arrow-left" style="font-size:12px"></i> 왼쪽 가지</button>
-    <button class="tb" onclick="MM.addChild()"><i class="ti ti-arrow-right" style="font-size:12px"></i> 오른쪽 가지</button>
+    <button class="tb accent" onclick="MM.addChildLeft()"><i class="ti ti-arrow-left" style="font-size:12px"></i> 좌</button>
+    <button class="tb" onclick="MM.addChild()"><i class="ti ti-arrow-right" style="font-size:12px"></i> 우</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.addSibling(1)"><i class="ti ti-arrow-down" style="font-size:12px"></i> 아래</button>
-    <button class="tb" onclick="MM.addSibling(-1)"><i class="ti ti-arrow-up" style="font-size:12px"></i> 위</button>
+    <button class="tb" onclick="MM.addSibling(1)"><i class="ti ti-arrow-down" style="font-size:12px"></i> 하</button>
+    <button class="tb" onclick="MM.addSibling(-1)"><i class="ti ti-arrow-up" style="font-size:12px"></i> 상</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.startEdit()"><i class="ti ti-edit" style="font-size:12px"></i> 편집</button>
     <button class="tb danger" onclick="MM.deleteNode()"><i class="ti ti-trash" style="font-size:12px"></i></button>
     <div class="sep"></div>
-    <button class="tb" id="btn-copy" onclick="MM.copyNode()"><i class="ti ti-copy" style="font-size:12px"></i> 복사</button>
-    <button class="tb" id="btn-cut" onclick="MM.cutNode()"><i class="ti ti-cut" style="font-size:12px"></i> 잘라내기</button>
-    <button class="tb" id="btn-paste" onclick="MM.pasteNode()" style="opacity:.4"><i class="ti ti-clipboard" style="font-size:12px"></i> 붙여넣기</button>
+    <button class="tb" id="btn-copy" onclick="MM.copyNode()"><i class="ti ti-copy" style="font-size:12px"></i> copy</button>
+    <button class="tb" id="btn-cut" onclick="MM.cutNode()"><i class="ti ti-cut" style="font-size:12px"></i> cut</button>
+    <button class="tb" id="btn-paste" onclick="MM.pasteNode()" style="opacity:.4"><i class="ti ti-clipboard" style="font-size:12px"></i> paste</button>
     <div class="sep"></div>
     <button class="tb" onclick="MM.toggleColorPanel()"><i class="ti ti-sparkles" style="font-size:12px"></i> 모양</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.optimize()"><i class="ti ti-layout-distribute-vertical" style="font-size:12px"></i> 최적화</button>
+    <button class="tb" onclick="MM.optimize()"><i class="ti ti-layout-distribute-vertical" style="font-size:12px"></i> optimize</button>
     <div class="sep"></div>
+<<<<<<< HEAD
+    <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> import</button>
+    <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> export</button>
+    <div class="sep"></div>
+    <button class="tb" onclick="MM.toggleGithubPanel()"><i class="ti ti-brand-github" style="font-size:12px"></i> GitHub</button>
+    <div class="sep"></div>
+    <button class="tb" id="btn-layout" onclick="MM.toggleToolbarLayout()" title="메뉴 위치 전환"><i class="ti ti-layout-sidebar-left-expand" id="btn-layout-icon" style="font-size:12px"></i></button>
+=======
     <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> 불러오기</button>
     <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> 내보내기</button>
     <div class="sep"></div>
     <button class="tb" onclick="MM.toggleGithubPanel()"><i class="ti ti-brand-github" style="font-size:12px"></i> GitHub</button>
+>>>>>>> a9643e63543b018fe2948512d42de25386b1cf3f
   </div>
 
   <div id="zoom-bar">
@@ -142,7 +154,6 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <span id="zoom-lbl">100%</span>
     <button class="tb" onclick="MM.zoomStep(1)" style="padding:2px 6px;height:22px">+</button>
   </div>
-  <div id="hint">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | /: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
   <div id="copyright">© Dr. Hannjoo Lee, KSC/PCC · hannjoo@gmail.com</div>
 
   <div id="color-panel">
@@ -1078,6 +1089,22 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function closeAll(){
     ['color-panel','export-panel','github-panel'].forEach(id=>document.getElementById(id).style.display='none');
+<<<<<<< HEAD
+  }
+  const TB_LAYOUT_KEY='mmToolbarVertical';
+  function applyToolbarLayout(vertical){
+    const tb=document.getElementById('toolbar');
+    const icon=document.getElementById('btn-layout-icon');
+    tb.classList.toggle('vertical',vertical);
+    if(icon)icon.className='ti '+(vertical?'ti-layout-navbar':'ti-layout-sidebar-left-expand');
+  }
+  function toggleToolbarLayout(){
+    const tb=document.getElementById('toolbar');
+    const vertical=!tb.classList.contains('vertical');
+    applyToolbarLayout(vertical);
+    try{localStorage.setItem(TB_LAYOUT_KEY,vertical?'1':'0');}catch(e){}
+=======
+>>>>>>> a9643e63543b018fe2948512d42de25386b1cf3f
   }
   function toggleColorPanel(){
     const cp=document.getElementById('color-panel');
@@ -1808,8 +1835,14 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     applyCustomColor,applyColorSubtree,resetColor,
     importFromDevice,
     exportPNG,exportTXT,exportMM,exportJSON,zoomStep,fitView,optimize,
+<<<<<<< HEAD
+    ghSaveConfig,ghSaveCurrent,ghSaveAs,ghShowList,toggleToolbarLayout};
+=======
     ghSaveConfig,ghSaveCurrent,ghSaveAs,ghShowList};
+>>>>>>> a9643e63543b018fe2948512d42de25386b1cf3f
   window.SC=SC;
+
+  try{applyToolbarLayout(localStorage.getItem(TB_LAYOUT_KEY)==='1');}catch(e){}
 
   const r=nid();
   nodes[r]={text:'중심 주제',parentId:null};
