@@ -124,7 +124,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <button class="tb" onclick="MM.addSibling(1)"><i class="ti ti-arrow-down" style="font-size:12px"></i> 하</button>
     <button class="tb" onclick="MM.addSibling(-1)"><i class="ti ti-arrow-up" style="font-size:12px"></i> 상</button>
     <div class="sep"></div>
-    <button class="tb danger" onclick="MM.deleteNode()"><i class="ti ti-trash" style="font-size:12px"></i></button>
+    <button class="tb danger" onclick="MM.deleteNode()"><i class="ti ti-trash" style="font-size:12px"></i> erase</button>
     <div class="sep"></div>
     <button class="tb" id="btn-copy" onclick="MM.copyNode()"><i class="ti ti-copy" style="font-size:12px"></i> copy</button>
     <button class="tb" id="btn-cut" onclick="MM.cutNode()"><i class="ti ti-cut" style="font-size:12px"></i> cut</button>
@@ -141,7 +141,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <div class="sep"></div>
     <button class="tb" onclick="MM.toggleHintPanel()" title="도움말"><i class="ti ti-dots" style="font-size:12px"></i> more</button>
     <div class="sep"></div>
-    <button class="tb" id="btn-layout" onclick="MM.toggleToolbarLayout()" title="메뉴 위치 전환"><i class="ti ti-layout-sidebar-left-expand" id="btn-layout-icon" style="font-size:12px"></i></button>
+    <button class="tb" id="btn-layout" onclick="MM.toggleToolbarLayout()" title="메뉴 위치 전환"><i class="ti ti-layout-sidebar-left-expand" id="btn-layout-icon" style="font-size:12px"></i> 바 위치</button>
   </div>
 
   <div id="hint-panel">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | /: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
@@ -288,8 +288,23 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function root(){return Object.keys(nodes).find(k=>!nodes[k].parentId)}
   function depth(id){let d=0,n=nodes[id];while(n&&n.parentId){d++;n=nodes[n.parentId];}return d}
   function kids(id){return Object.keys(nodes).filter(k=>nodes[k].parentId===id).sort((a,b)=>(nodes[a]._o||0)-(nodes[b]._o||0))}
+  // 전체 부모→자식 목록을 한 번에 계산 (레이아웃/렌더링 시 kids() 반복 호출로 인한 O(n²) 방지용)
+  function buildChildMap(){
+    const map={};
+    Object.keys(nodes).forEach(id=>{
+      const pid=nodes[id].parentId;
+      if(pid){(map[pid]||(map[pid]=[])).push(id);}
+    });
+    Object.keys(map).forEach(pid=>map[pid].sort((a,b)=>(nodes[a]._o||0)-(nodes[b]._o||0)));
+    return map;
+  }
   function sibs(id){const n=nodes[id];if(!n||!n.parentId)return[];return kids(n.parentId)}
-  function subtree(id){const res=[id];kids(id).forEach(c=>subtree(c).forEach(x=>res.push(x)));return res}
+  function subtree(id,childMap){
+    childMap=childMap||buildChildMap();
+    const res=[id];
+    (childMap[id]||[]).forEach(c=>subtree(c,childMap).forEach(x=>res.push(x)));
+    return res;
+  }
   function isAncestor(anc,id){let cur=nodes[id];while(cur&&cur.parentId){if(cur.parentId===anc)return true;cur=nodes[cur.parentId];}return false}
 
   // 조상 중 하나라도 collapsed면 숨김 대상 (자기 자신은 collapsed여도 보임, 자식만 숨김)
@@ -379,29 +394,31 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     else{action();}
   }
 
-  function getColor(id){
+  function getColor(id,rootKids){
     const n=nodes[id];
     if(n.cc)return n.cc;
     if(!n.parentId)return ROOT_C;
-    const r=root(),tk=kids(r);
+    const r=root(),tk=rootKids||kids(r);
     let anc=id;
     while(nodes[anc]&&nodes[nodes[anc].parentId]&&nodes[nodes[anc].parentId].parentId)anc=nodes[anc].parentId;
     if(nodes[anc]&&nodes[anc].cc)return nodes[anc].cc;
     return PALETTE[(tk.indexOf(anc)>=0?tk.indexOf(anc):0)%PALETTE.length];
   }
 
-  function calcSH(id,side){
+  function calcSH(id,side,childMap){
+    childMap=childMap||buildChildMap();
     const n=nodes[id]; n.w=nodeW(id); n.h=nodeH(id);
-    const ch=n.collapsed?[]:kids(id).filter(k=>nodes[k].side===side);
+    const ch=n.collapsed?[]:(childMap[id]||[]).filter(k=>nodes[k].side===side);
     if(!ch.length)return n.h;
-    return Math.max(n.h, ch.reduce((a,c)=>a+calcSH(c,side),0)+(ch.length-1)*VGAP);
+    return Math.max(n.h, ch.reduce((a,c)=>a+calcSH(c,side,childMap),0)+(ch.length-1)*VGAP);
   }
 
-  function placeNode(id,x,y,side){
+  function placeNode(id,x,y,side,childMap){
+    childMap=childMap||buildChildMap();
     const n=nodes[id]; n.w=nodeW(id); n.h=nodeH(id);
-    const ch=n.collapsed?[]:kids(id).filter(k=>nodes[k].side===side);
+    const ch=n.collapsed?[]:(childMap[id]||[]).filter(k=>nodes[k].side===side);
     if(!ch.length){n._ax=x;n._ay=y;return n.h;}
-    const heights=ch.map(c=>calcSH(c,side));
+    const heights=ch.map(c=>calcSH(c,side,childMap));
     const total=heights.reduce((a,b)=>a+b,0)+(ch.length-1)*VGAP;
     const blockH=Math.max(n.h,total);
     // 부모: 블록 중앙에 배치
@@ -409,7 +426,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     // 자식들: 블록 중앙 기준 상하 대칭 (항상 블록 안에서만)
     let cy=y+(blockH-total)/2;
     ch.forEach((c,i)=>{
-      placeNode(c,side==='right'?x+n.w+HGAP:x-nodeW(c)-HGAP,cy,side);
+      placeNode(c,side==='right'?x+n.w+HGAP:x-nodeW(c)-HGAP,cy,side,childMap);
       cy+=heights[i]+VGAP;
     });
     return blockH;
@@ -417,18 +434,19 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function doLayout(){
     const r=root();if(!r)return;
+    const childMap=buildChildMap();
     const rn=nodes[r]; rn.w=nodeW(r); rn.h=nodeH(r);
-    const lk=kids(r).filter(k=>nodes[k].side==='left');
-    const rk=kids(r).filter(k=>nodes[k].side!=='left');
-    const lH=lk.length?lk.reduce((a,k)=>a+calcSH(k,'left'),0)+(lk.length-1)*VGAP:rn.h;
-    const rH=rk.length?rk.reduce((a,k)=>a+calcSH(k,'right'),0)+(rk.length-1)*VGAP:rn.h;
+    const lk=(childMap[r]||[]).filter(k=>nodes[k].side==='left');
+    const rk=(childMap[r]||[]).filter(k=>nodes[k].side!=='left');
+    const lH=lk.length?lk.reduce((a,k)=>a+calcSH(k,'left',childMap),0)+(lk.length-1)*VGAP:rn.h;
+    const rH=rk.length?rk.reduce((a,k)=>a+calcSH(k,'right',childMap),0)+(rk.length-1)*VGAP:rn.h;
     const totalH=Math.max(rn.h,lH,rH);
     const cx=300, cy=Math.max(80,totalH/2+40);
     rn._ax=cx; rn._ay=cy-rn.h/2;
     let rcy=cy-rH/2;
-    rk.forEach(k=>{const sh=placeNode(k,cx+rn.w+HGAP,rcy,'right');rcy+=sh+VGAP;});
+    rk.forEach(k=>{const sh=placeNode(k,cx+rn.w+HGAP,rcy,'right',childMap);rcy+=sh+VGAP;});
     let lcy=cy-lH/2;
-    lk.forEach(k=>{const sh=placeNode(k,cx-nodeW(k)-HGAP,lcy,'left');lcy+=sh+VGAP;});
+    lk.forEach(k=>{const sh=placeNode(k,cx-nodeW(k)-HGAP,lcy,'left',childMap);lcy+=sh+VGAP;});
     let minX=1e9,minY=1e9;
     Object.values(nodes).forEach(n=>{if((n._ax||0)<minX)minX=n._ax||0;if((n._ay||0)<minY)minY=n._ay||0;});
     const ox=Math.max(0,40-minX),oy=Math.max(0,40-minY);
@@ -450,6 +468,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function renderDOM(){
     Object.keys(nodes).forEach(id=>{nodes[id].h=nodeH(id); nodes[id].w=nodeW(id);});
+    const rootKids=kids(root());
+    const childMap=buildChildMap();
 
     let maxX=400,maxY=300;
     Object.values(nodes).forEach(n=>{
@@ -463,7 +483,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     Object.keys(nodes).forEach(id=>{
       const n=nodes[id]; const pn=n.parentId?nodes[n.parentId]:null; if(!pn)return;
       if(isHidden(id))return; // 접힌 브랜치의 자손은 연결선도 숨김
-      const c=getColor(id); const side=n.side||'right';
+      const c=getColor(id,rootKids); const side=n.side||'right';
       const nh=n.h||H_BASE, pnh=pn.h||H_BASE;
       const x1=side==='right'?pn.x+pn.w:pn.x; const y1=pn.y+pnh/2;
       const x2=side==='right'?n.x:n.x+n.w;    const y2=n.y+nh/2;
@@ -480,7 +500,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const existing=new Set(Object.keys(domCache));
     Object.keys(nodes).forEach(id=>{
       if(isHidden(id))return; // 접힌 브랜치의 자손 노드는 DOM에서 제거 (existing cleanup에서 처리됨)
-      const n=nodes[id]; const c=getColor(id); const isRoot=!n.parentId; const isSel=id===sel;
+      const n=nodes[id]; const c=getColor(id,rootKids); const isRoot=!n.parentId; const isSel=id===sel;
       const nh=n.h||H_BASE;
       let el=domCache[id];
       if(!el){
@@ -521,7 +541,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
       // ── 접힘 배지 ──
       const badge=el.querySelector('.collapse-badge');
-      const childCount=kids(id).length;
+      const childCount=(childMap[id]||[]).length;
       if(n.collapsed&&childCount>0){
         badge.textContent=childCount;
         badge.style.display='flex';
@@ -573,7 +593,11 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     sideTimer=setTimeout(()=>{sideInd.style.display='none';},900);
   }
 
-  function setSideRecursive(id,side){nodes[id].side=side; kids(id).forEach(c=>setSideRecursive(c,side));}
+  function setSideRecursive(id,side,childMap){
+    childMap=childMap||buildChildMap();
+    nodes[id].side=side;
+    (childMap[id]||[]).forEach(c=>setSideRecursive(c,side,childMap));
+  }
 
   // 두 노드가 겹치는지 판단
   function hitTest(draggingId, targetId){
@@ -940,7 +964,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(!sel||!nodes[sel]||!nodes[sel].parentId)return;
     commitEdit(); snap();
     const pid=nodes[sel].parentId, sb=sibs(sel), idx=sb.indexOf(sel);
-    function rm(id){kids(id).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
+    const childMap=buildChildMap();
+    function rm(id){(childMap[id]||[]).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
     rm(sel);
     const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
     sel=rem.length?rem[Math.max(0,idx-1)]:pid;
@@ -980,7 +1005,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function zoomStep(d){setZoom(sc*(d>0?1.2:1/1.2))}
 
   function fitView(){
-    const allN=Object.values(nodes); if(!allN.length)return;
+    const allN=Object.keys(nodes).filter(id=>!isHidden(id)).map(id=>nodes[id]); if(!allN.length)return;
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     allN.forEach(n=>{x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x+n.w);y1=Math.max(y1,n.y+(n.h||H_BASE));});
     const W=app.clientWidth-80, Hv=app.clientHeight-120;
@@ -1184,7 +1209,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function applyColorSubtree(){
     if(!sel)return; snap();
     const c=nodes[sel].cc||getColor(sel);
-    function dn(id){nodes[id].cc={...c};kids(id).forEach(dn);}
+    const childMap=buildChildMap();
+    function dn(id){nodes[id].cc={...c};(childMap[id]||[]).forEach(dn);}
     dn(sel); renderDOM();
   }
   function resetColor(){if(!sel)return;snap();delete nodes[sel].cc;renderDOM();}
@@ -1257,6 +1283,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function exportPNG(){
     closeAll();
     const fname=safeFilename(nodes[root()].text);
+    const rootKids=kids(root());
     const allN=Object.keys(nodes).filter(id=>!isHidden(id)).map(id=>nodes[id]);
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     allN.forEach(n=>{x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x+n.w);y1=Math.max(y1,n.y+(n.h||H_BASE));});
@@ -1269,7 +1296,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     Object.keys(nodes).forEach(id=>{
       if(isHidden(id))return;
       const n=nodes[id]; const pn=n.parentId?nodes[n.parentId]:null; if(!pn)return;
-      const c=getColor(id); const side=n.side||'right';
+      const c=getColor(id,rootKids); const side=n.side||'right';
       const nh=n.h||H_BASE, pnh=pn.h||H_BASE;
       const ax=side==='right'?pn.x+pn.w+ox:pn.x+ox, ay=pn.y+pnh/2+oy;
       const bx=side==='right'?n.x+ox:n.x+n.w+ox,   by=n.y+nh/2+oy;
@@ -1280,7 +1307,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     // 노드 박스
     Object.keys(nodes).forEach(id=>{
       if(isHidden(id))return;
-      const n=nodes[id]; const c=getColor(id); const isRoot=!n.parentId;
+      const n=nodes[id]; const c=getColor(id,rootKids); const isRoot=!n.parentId;
       const nh=n.h||H_BASE; const x=n.x+ox, y=n.y+oy, r2=isRoot?10:8;
       ctx.beginPath(); ctx.roundRect(x,y,n.w,nh,r2); ctx.fillStyle=c.fill; ctx.fill();
       ctx.strokeStyle=c.stroke; ctx.lineWidth=isRoot?1.5:1; ctx.stroke();
@@ -1331,9 +1358,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function exportMM(){
     closeAll(); const r=root();
     const fname=safeFilename(nodes[r].text);
+    const childMap=buildChildMap();
     function esc(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
     function toXML(id,d){
-      const n=nodes[id]; const ch=kids(id); const ind='  '.repeat(d);
+      const n=nodes[id]; const ch=childMap[id]||[]; const ind='  '.repeat(d);
       const pos=d===1?` POSITION="${n.side||'right'}"` : '';
       if(!ch.length)return `${ind}<node TEXT="${esc(n.text)}"${pos}/>`;
       return `${ind}<node TEXT="${esc(n.text)}"${pos}>\n${ch.map(c=>toXML(c,d+1)).join('\n')}\n${ind}</node>`;
@@ -1533,13 +1561,14 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── 드래그 후 자식 재배치 (현재 노드 위치 기준) ──
   function relayoutChildren(id){
     const n=nodes[id];
-    const rch=kids(id).filter(c=>nodes[c].side!=='left');
-    const lch=kids(id).filter(c=>nodes[c].side==='left');
+    const childMap=buildChildMap();
+    const rch=(childMap[id]||[]).filter(c=>nodes[c].side!=='left');
+    const lch=(childMap[id]||[]).filter(c=>nodes[c].side==='left');
     function placeRel(cid,x,y,side){
       const cn=nodes[cid]; cn.w=nodeW(cid); cn.h=nodeH(cid);
-      const ch=cn.collapsed?[]:kids(cid).filter(k=>nodes[k].side===side);
+      const ch=cn.collapsed?[]:(childMap[cid]||[]).filter(k=>nodes[k].side===side);
       if(!ch.length){cn.x=x;cn.y=y;cn.manualX=x;cn.manualY=y;return cn.h;}
-      const heights=ch.map(c=>calcSH(c,side));
+      const heights=ch.map(c=>calcSH(c,side,childMap));
       const total=heights.reduce((a,b)=>a+b,0)+(ch.length-1)*VGAP;
       const blockH=Math.max(cn.h,total);
       cn.x=x; cn.y=y+(blockH-cn.h)/2; cn.manualX=cn.x; cn.manualY=cn.y;
@@ -1547,10 +1576,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       ch.forEach((c,i)=>{placeRel(c,side==='right'?x+cn.w+HGAP:x-nodeW(c)-HGAP,cy,side);cy+=heights[i]+VGAP;});
       return blockH;
     }
-    const rH=rch.reduce((a,c)=>a+calcSH(c,'right'),0)+Math.max(0,rch.length-1)*VGAP;
+    const rH=rch.reduce((a,c)=>a+calcSH(c,'right',childMap),0)+Math.max(0,rch.length-1)*VGAP;
     let rcy=n.y+n.h/2-rH/2;
     rch.forEach(c=>{const h=placeRel(c,n.x+n.w+HGAP,rcy,'right');rcy+=h+VGAP;});
-    const lH=lch.reduce((a,c)=>a+calcSH(c,'left'),0)+Math.max(0,lch.length-1)*VGAP;
+    const lH=lch.reduce((a,c)=>a+calcSH(c,'left',childMap),0)+Math.max(0,lch.length-1)*VGAP;
     let lcy=n.y+n.h/2-lH/2;
     lch.forEach(c=>{const h=placeRel(c,n.x-nodeW(c)-HGAP,lcy,'left');lcy+=h+VGAP;});
   }
@@ -1558,7 +1587,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── Markdown 변환 ──────────────────────────────────────────────
 
   // 노드 서브트리 → Markdown 텍스트 (들여쓰기 목록 형식)
-  function toMarkdown(id, depth){
+  function toMarkdown(id, depth, childMap){
+    childMap=childMap||buildChildMap();
     const n=nodes[id];
     const indent='  '.repeat(depth);
     const textLines=(n.text||'').split('\n');
@@ -1566,7 +1596,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const cont=textLines.slice(1).map(l=>`${indent}  ${l}`);
     let md=[head,...cont].join('\n');
     if(!n.collapsed){
-      const childMd=kids(id).map(c=>toMarkdown(c,depth+1)).join('\n');
+      const childMd=(childMap[id]||[]).map(c=>toMarkdown(c,depth+1,childMap)).join('\n');
       if(childMd) md+='\n'+childMd;
     }
     return md;
@@ -1700,7 +1730,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     _clipboard._ts=Date.now();
     snap();
     const pid=nodes[sel].parentId, sb=sibs(sel), idx=sb.indexOf(sel);
-    function rm(id){kids(id).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
+    const childMap=buildChildMap();
+    function rm(id){(childMap[id]||[]).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
     rm(sel);
     const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
     sel=rem.length?rem[Math.max(0,idx-1)]:pid;
