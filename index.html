@@ -12,7 +12,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #viewport{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;cursor:grab;touch-action:none}
 #viewport.panning{cursor:grabbing}
 #viewport.drag-node{cursor:move}
-#world{position:absolute;transform-origin:0 0}
+#world{position:absolute;transform-origin:0 0;will-change:transform}
 svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 .node-el{position:absolute;border-radius:8px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;cursor:pointer;border:1px solid transparent;font-family:inherit;overflow:hidden}
 .node-el:hover{filter:brightness(.93)}
@@ -48,7 +48,12 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 .rh-w{top:50%;left:-5px;transform:translateY(-50%);cursor:w-resize}
 .rh-e{top:50%;right:-5px;transform:translateY(-50%);cursor:e-resize}
 .node-el.selected .rh{display:block}
-#toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:3px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:5px 8px;z-index:100;align-items:center;flex-wrap:wrap;max-width:calc(100% - 16px);box-shadow:0 1px 6px rgba(0,0,0,.06)}
+#toolbar{position:absolute;top:12px;left:8px;right:8px;display:flex;gap:3px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:5px 8px;z-index:100;align-items:center;flex-wrap:wrap;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+#toolbar.vertical{top:12px;left:8px;right:auto;bottom:auto;width:auto;max-width:220px;max-height:calc(100dvh - 24px);flex-direction:column;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;overflow-y:auto}
+#toolbar.vertical .tb{width:100%;justify-content:flex-start}
+#toolbar.vertical .sep{width:100%;height:.5px;margin:2px 0}
+#hint-panel{position:absolute;top:56px;right:14px;max-width:min(420px,calc(100% - 28px));font-size:11px;line-height:1.6;color:#555;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:10px 14px;z-index:200;display:none;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+#toolbar.vertical ~ #hint-panel{left:8px;right:auto;top:auto}
 .tb{background:none;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;padding:3px 8px;font-size:11px;color:#555;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap;height:26px;font-family:inherit}
 .tb:hover{background:#f0f0ec;color:#111}
 .tb.danger{color:#c0392b;border-color:#e8b4b0}.tb.danger:hover{background:#fdf0ef}
@@ -56,7 +61,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 .sep{width:.5px;height:18px;background:rgba(0,0,0,0.1);margin:0 2px}
 #zoom-bar{position:absolute;bottom:14px;right:14px;display:flex;align-items:center;gap:6px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:4px 10px;z-index:100;box-shadow:0 1px 6px rgba(0,0,0,.06)}
 #zoom-lbl{min-width:34px;text-align:center;font-size:11px;color:#666}
-#hint{position:absolute;bottom:14px;left:14px;font-size:10px;color:#999;background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;padding:3px 10px;pointer-events:none;z-index:100}
+#file-title{position:absolute;bottom:14px;left:14px;font-size:11px;color:#888;background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:8px;padding:3px 10px;pointer-events:none;z-index:90;max-width:min(50vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none}
 #copyright{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:9px;color:#b3b3b3;pointer-events:none;z-index:90;white-space:nowrap;letter-spacing:.2px}
 #side-indicator{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:13px;font-family:inherit;color:#185FA5;background:#e8f1fb;border:0.5px solid #90b8e8;border-radius:8px;padding:5px 16px;z-index:500;display:none;pointer-events:none}
 #color-panel,#export-panel,#import-panel,#github-panel{position:absolute;top:50px;background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:10px 12px;z-index:200;display:none;box-shadow:0 2px 12px rgba(0,0,0,.08)}
@@ -112,37 +117,42 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   <div id="side-indicator"></div>
 
   <div id="toolbar">
-    <button class="tb" id="btn-undo" title="Ctrl+Z"><i class="ti ti-arrow-back-up" style="font-size:13px"></i> 취소</button>
+    <button class="tb" id="btn-undo" title="Ctrl+Z"><i class="ti ti-arrow-back-up" style="font-size:13px"></i> undo</button>
     <div class="sep"></div>
-    <button class="tb accent" onclick="MM.addChildLeft()"><i class="ti ti-arrow-left" style="font-size:12px"></i> 왼쪽 가지</button>
-    <button class="tb" onclick="MM.addChild()"><i class="ti ti-arrow-right" style="font-size:12px"></i> 오른쪽 가지</button>
+    <button class="tb accent" onclick="MM.addChildLeft()"><i class="ti ti-arrow-left" style="font-size:12px"></i> 좌</button>
+    <button class="tb" onclick="MM.addChild()"><i class="ti ti-arrow-right" style="font-size:12px"></i> 우</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.addSibling(1)"><i class="ti ti-arrow-down" style="font-size:12px"></i> 아래</button>
-    <button class="tb" onclick="MM.addSibling(-1)"><i class="ti ti-arrow-up" style="font-size:12px"></i> 위</button>
+    <button class="tb" onclick="MM.addSibling(1)"><i class="ti ti-arrow-down" style="font-size:12px"></i> 하</button>
+    <button class="tb" onclick="MM.addSibling(-1)"><i class="ti ti-arrow-up" style="font-size:12px"></i> 상</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.startEdit()"><i class="ti ti-edit" style="font-size:12px"></i> 편집</button>
-    <button class="tb danger" onclick="MM.deleteNode()"><i class="ti ti-trash" style="font-size:12px"></i></button>
+    <button class="tb danger" onclick="MM.deleteNode()"><i class="ti ti-trash" style="font-size:12px"></i> del</button>
     <div class="sep"></div>
-    <button class="tb" id="btn-copy" onclick="MM.copyNode()"><i class="ti ti-copy" style="font-size:12px"></i> 복사</button>
-    <button class="tb" id="btn-cut" onclick="MM.cutNode()"><i class="ti ti-cut" style="font-size:12px"></i> 잘라내기</button>
-    <button class="tb" id="btn-paste" onclick="MM.pasteNode()" style="opacity:.4"><i class="ti ti-clipboard" style="font-size:12px"></i> 붙여넣기</button>
+    <button class="tb" id="btn-copy" onclick="MM.copyNode()"><i class="ti ti-copy" style="font-size:12px"></i> copy</button>
+    <button class="tb" id="btn-cut" onclick="MM.cutNode()"><i class="ti ti-cut" style="font-size:12px"></i> cut</button>
+    <button class="tb" id="btn-paste" onclick="MM.pasteNode()" style="opacity:.4"><i class="ti ti-clipboard" style="font-size:12px"></i> paste</button>
     <div class="sep"></div>
     <button class="tb" onclick="MM.toggleColorPanel()"><i class="ti ti-sparkles" style="font-size:12px"></i> 모양</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.optimize()"><i class="ti ti-layout-distribute-vertical" style="font-size:12px"></i> 최적화</button>
+    <button class="tb" onclick="MM.optimize()"><i class="ti ti-layout-distribute-vertical" style="font-size:12px"></i> optimize</button>
     <div class="sep"></div>
-    <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> 불러오기</button>
-    <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> 내보내기</button>
+    <button class="tb" onclick="MM.importFromDevice()"><i class="ti ti-upload" style="font-size:12px"></i> import</button>
+    <button class="tb" onclick="MM.toggleExportPanel()"><i class="ti ti-download" style="font-size:12px"></i> export</button>
     <div class="sep"></div>
     <button class="tb" onclick="MM.toggleGithubPanel()"><i class="ti ti-brand-github" style="font-size:12px"></i> GitHub</button>
+    <div class="sep"></div>
+    <button class="tb" onclick="MM.toggleHintPanel()" title="도움말"><i class="ti ti-dots" style="font-size:12px"></i> more</button>
+    <div class="sep"></div>
+    <button class="tb" id="btn-layout" onclick="MM.toggleToolbarLayout()" title="메뉴 위치 전환"><i class="ti ti-layout-sidebar-left-expand" id="btn-layout-icon" style="font-size:12px"></i> 바 위치</button>
   </div>
+
+  <div id="hint-panel">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | /: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
 
   <div id="zoom-bar">
     <button class="tb" onclick="MM.zoomStep(-1)" style="padding:2px 6px;height:22px">−</button>
     <span id="zoom-lbl">100%</span>
     <button class="tb" onclick="MM.zoomStep(1)" style="padding:2px 6px;height:22px">+</button>
   </div>
-  <div id="hint">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | /: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
+  <div id="file-title"></div>
   <div id="copyright">© Dr. Hannjoo Lee, KSC/PCC · hannjoo@gmail.com</div>
 
   <div id="color-panel">
@@ -185,7 +195,6 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       <div class="gh-hint">토큰은 이 브라우저에만 저장됩니다. Fine-grained PAT를 만들어 해당 저장소에 Contents 읽기/쓰기 권한만 부여하는 걸 권장해요.</div>
     </div>
     <hr class="panel-divider">
-    <div class="panel-row" onclick="MM.ghSaveCurrent()"><i class="ti ti-cloud-upload"></i><div class="row-label">GitHub에 저장</div></div>
     <div class="panel-row" onclick="MM.ghSaveAs()"><i class="ti ti-cloud-plus"></i><div class="row-label">다른 이름으로 저장</div></div>
     <div class="panel-row" onclick="MM.ghShowList()"><i class="ti ti-cloud-download"></i><div class="row-label">불러오기 목록</div></div>
     <div class="gh-status" id="gh-status"></div>
@@ -224,7 +233,14 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   let nodes={}, sel=null, editing=null, seq=0;
   let tx=0, ty=0, sc=1;
-  let hist=[], domCache={};
+  let hist=[], domCache={}, pathCache={}, currentFileName='';
+  function setFileTitle(name){
+    currentFileName=name||'';
+    const el=document.getElementById('file-title');
+    if(!el)return;
+    if(currentFileName){el.textContent='📄 '+currentFileName;el.style.display='block';}
+    else{el.style.display='none';}
+  }
   let sideTimer=null;
   let dropTarget=null;
   let isDirty=false;
@@ -280,8 +296,23 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function root(){return Object.keys(nodes).find(k=>!nodes[k].parentId)}
   function depth(id){let d=0,n=nodes[id];while(n&&n.parentId){d++;n=nodes[n.parentId];}return d}
   function kids(id){return Object.keys(nodes).filter(k=>nodes[k].parentId===id).sort((a,b)=>(nodes[a]._o||0)-(nodes[b]._o||0))}
+  // 전체 부모→자식 목록을 한 번에 계산 (레이아웃/렌더링 시 kids() 반복 호출로 인한 O(n²) 방지용)
+  function buildChildMap(){
+    const map={};
+    Object.keys(nodes).forEach(id=>{
+      const pid=nodes[id].parentId;
+      if(pid){(map[pid]||(map[pid]=[])).push(id);}
+    });
+    Object.keys(map).forEach(pid=>map[pid].sort((a,b)=>(nodes[a]._o||0)-(nodes[b]._o||0)));
+    return map;
+  }
   function sibs(id){const n=nodes[id];if(!n||!n.parentId)return[];return kids(n.parentId)}
-  function subtree(id){const res=[id];kids(id).forEach(c=>subtree(c).forEach(x=>res.push(x)));return res}
+  function subtree(id,childMap){
+    childMap=childMap||buildChildMap();
+    const res=[id];
+    (childMap[id]||[]).forEach(c=>subtree(c,childMap).forEach(x=>res.push(x)));
+    return res;
+  }
   function isAncestor(anc,id){let cur=nodes[id];while(cur&&cur.parentId){if(cur.parentId===anc)return true;cur=nodes[cur.parentId];}return false}
 
   // 조상 중 하나라도 collapsed면 숨김 대상 (자기 자신은 collapsed여도 보임, 자식만 숨김)
@@ -303,6 +334,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     nodes[id].collapsed=!nodes[id].collapsed;
     if(sel&&isHidden(sel))sel=id; // 선택된 노드가 숨겨지면 접은 노드로 선택 이동
     render();
+    if(sel)centerOnNode(sel); // 배치가 바뀌어도 선택된 노드가 화면 중앙에 보이도록 보정
   }
 
   // 텍스트만의 높이 (이미지 제외)
@@ -312,9 +344,12 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     return Math.max(H_BASE, lines*LINE_H + 14);
   }
 
-  // 노드 전체 높이: 텍스트 + 이미지
+  // 노드 전체 높이: 텍스트 + 이미지 (캐싱: 텍스트/이미지/manualH가 안 바뀌면 재계산 생략)
   function nodeH(id){
     const n=nodes[id];
+    const imgSig=n.images&&n.images.length?n.images.map(i=>i.h||120).join(','):'';
+    const sig=`${n.text}|${imgSig}|${n.manualH}`;
+    if(n._hSig===sig) return n._hVal;
     const textH=nodeTextH(id);
     let imgH=0;
     if(n.images&&n.images.length){
@@ -322,18 +357,23 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       imgH+=8; // 하단 패딩
     }
     const autoH=textH+imgH;
-    if(n.manualH!==undefined) return Math.max(n.manualH, autoH);
-    return autoH;
+    const val=(n.manualH!==undefined)?Math.max(n.manualH, autoH):autoH;
+    n._hSig=sig; n._hVal=val;
+    return val;
   }
 
-  // 노드 너비: 텍스트 또는 이미지 중 더 넓은 것
+  // 노드 너비: 텍스트 또는 이미지 중 더 넓은 것 (캐싱: measureText는 비용이 커서 서명이 같으면 재사용)
   function nodeW(id){
     const n=nodes[id];
     if(n.manualW!==undefined) return n.manualW;
+    const imgSig=n.images&&n.images.length?n.images.map(i=>i.w||180).join(','):'';
+    const sig=`${n.text}|${n.bold?1:0}|${n.fontLg?1:0}|${n.fontSm?1:0}|${n.parentId?0:1}|${imgSig}`;
+    if(n._wSig===sig) return n._wVal;
     let w=mw(n.text, id); // nodeFont(id) 사용으로 bold/size 반영
     if(n.images&&n.images.length){
       n.images.forEach(img=>{ w=Math.max(w,(img.w||180)+20); });
     }
+    n._wSig=sig; n._wVal=w;
     return w;
   }
 
@@ -371,29 +411,31 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     else{action();}
   }
 
-  function getColor(id){
+  function getColor(id,rootKids){
     const n=nodes[id];
     if(n.cc)return n.cc;
     if(!n.parentId)return ROOT_C;
-    const r=root(),tk=kids(r);
+    const r=root(),tk=rootKids||kids(r);
     let anc=id;
     while(nodes[anc]&&nodes[nodes[anc].parentId]&&nodes[nodes[anc].parentId].parentId)anc=nodes[anc].parentId;
     if(nodes[anc]&&nodes[anc].cc)return nodes[anc].cc;
     return PALETTE[(tk.indexOf(anc)>=0?tk.indexOf(anc):0)%PALETTE.length];
   }
 
-  function calcSH(id,side){
+  function calcSH(id,side,childMap){
+    childMap=childMap||buildChildMap();
     const n=nodes[id]; n.w=nodeW(id); n.h=nodeH(id);
-    const ch=n.collapsed?[]:kids(id).filter(k=>nodes[k].side===side);
+    const ch=n.collapsed?[]:(childMap[id]||[]).filter(k=>nodes[k].side===side);
     if(!ch.length)return n.h;
-    return Math.max(n.h, ch.reduce((a,c)=>a+calcSH(c,side),0)+(ch.length-1)*VGAP);
+    return Math.max(n.h, ch.reduce((a,c)=>a+calcSH(c,side,childMap),0)+(ch.length-1)*VGAP);
   }
 
-  function placeNode(id,x,y,side){
+  function placeNode(id,x,y,side,childMap){
+    childMap=childMap||buildChildMap();
     const n=nodes[id]; n.w=nodeW(id); n.h=nodeH(id);
-    const ch=n.collapsed?[]:kids(id).filter(k=>nodes[k].side===side);
+    const ch=n.collapsed?[]:(childMap[id]||[]).filter(k=>nodes[k].side===side);
     if(!ch.length){n._ax=x;n._ay=y;return n.h;}
-    const heights=ch.map(c=>calcSH(c,side));
+    const heights=ch.map(c=>calcSH(c,side,childMap));
     const total=heights.reduce((a,b)=>a+b,0)+(ch.length-1)*VGAP;
     const blockH=Math.max(n.h,total);
     // 부모: 블록 중앙에 배치
@@ -401,7 +443,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     // 자식들: 블록 중앙 기준 상하 대칭 (항상 블록 안에서만)
     let cy=y+(blockH-total)/2;
     ch.forEach((c,i)=>{
-      placeNode(c,side==='right'?x+n.w+HGAP:x-nodeW(c)-HGAP,cy,side);
+      placeNode(c,side==='right'?x+n.w+HGAP:x-nodeW(c)-HGAP,cy,side,childMap);
       cy+=heights[i]+VGAP;
     });
     return blockH;
@@ -409,18 +451,19 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function doLayout(){
     const r=root();if(!r)return;
+    const childMap=buildChildMap();
     const rn=nodes[r]; rn.w=nodeW(r); rn.h=nodeH(r);
-    const lk=kids(r).filter(k=>nodes[k].side==='left');
-    const rk=kids(r).filter(k=>nodes[k].side!=='left');
-    const lH=lk.length?lk.reduce((a,k)=>a+calcSH(k,'left'),0)+(lk.length-1)*VGAP:rn.h;
-    const rH=rk.length?rk.reduce((a,k)=>a+calcSH(k,'right'),0)+(rk.length-1)*VGAP:rn.h;
+    const lk=(childMap[r]||[]).filter(k=>nodes[k].side==='left');
+    const rk=(childMap[r]||[]).filter(k=>nodes[k].side!=='left');
+    const lH=lk.length?lk.reduce((a,k)=>a+calcSH(k,'left',childMap),0)+(lk.length-1)*VGAP:rn.h;
+    const rH=rk.length?rk.reduce((a,k)=>a+calcSH(k,'right',childMap),0)+(rk.length-1)*VGAP:rn.h;
     const totalH=Math.max(rn.h,lH,rH);
     const cx=300, cy=Math.max(80,totalH/2+40);
     rn._ax=cx; rn._ay=cy-rn.h/2;
     let rcy=cy-rH/2;
-    rk.forEach(k=>{const sh=placeNode(k,cx+rn.w+HGAP,rcy,'right');rcy+=sh+VGAP;});
+    rk.forEach(k=>{const sh=placeNode(k,cx+rn.w+HGAP,rcy,'right',childMap);rcy+=sh+VGAP;});
     let lcy=cy-lH/2;
-    lk.forEach(k=>{const sh=placeNode(k,cx-nodeW(k)-HGAP,lcy,'left');lcy+=sh+VGAP;});
+    lk.forEach(k=>{const sh=placeNode(k,cx-nodeW(k)-HGAP,lcy,'left',childMap);lcy+=sh+VGAP;});
     let minX=1e9,minY=1e9;
     Object.values(nodes).forEach(n=>{if((n._ax||0)<minX)minX=n._ax||0;if((n._ay||0)<minY)minY=n._ay||0;});
     const ox=Math.max(0,40-minX),oy=Math.max(0,40-minY);
@@ -442,48 +485,67 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   function renderDOM(){
     Object.keys(nodes).forEach(id=>{nodes[id].h=nodeH(id); nodes[id].w=nodeW(id);});
+    const rootKids=kids(root());
+    const childMap=buildChildMap();
 
     let maxX=400,maxY=300;
     Object.values(nodes).forEach(n=>{
       maxX=Math.max(maxX,(n.x||0)+(n.w||100)+60);
       maxY=Math.max(maxY,(n.y||0)+(n.h||H_BASE)+60);
     });
-    svgL.innerHTML='';
     svgL.setAttribute('width',maxX);svgL.setAttribute('height',maxY);
     svgL.setAttribute('viewBox',`0 0 ${maxX} ${maxY}`);
 
+    const pathExisting=new Set(Object.keys(pathCache));
     Object.keys(nodes).forEach(id=>{
       const n=nodes[id]; const pn=n.parentId?nodes[n.parentId]:null; if(!pn)return;
-      if(isHidden(id))return; // 접힌 브랜치의 자손은 연결선도 숨김
-      const c=getColor(id); const side=n.side||'right';
+      pathExisting.delete(id); // 삭제되지 않고 nodes에 존재함 (숨겨진 상태여도 캐시는 유지)
+      if(isHidden(id)){ // 접힌 브랜치의 자손은 연결선도 숨김 (DOM은 유지, 표시만 끔 — 재확장 시 빠르게 복원)
+        const p=pathCache[id]; if(p&&p.style.display!=='none'){p.style.display='none';p._hiddenState=true;}
+        return;
+      }
+      const c=getColor(id,rootKids); const side=n.side||'right';
       const nh=n.h||H_BASE, pnh=pn.h||H_BASE;
       const x1=side==='right'?pn.x+pn.w:pn.x; const y1=pn.y+pnh/2;
       const x2=side==='right'?n.x:n.x+n.w;    const y2=n.y+nh/2;
       const mx=(x1+x2)/2;
-      const p=document.createElementNS('http://www.w3.org/2000/svg','path');
-      p.setAttribute('fill','none');
-      p.setAttribute('d',`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
-      p.setAttribute('stroke',c.stroke);
-      p.setAttribute('stroke-width',depth(id)<=1?'2':'1.5');
-      p.setAttribute('opacity',depth(id)<=1?'0.65':'0.45');
-      svgL.appendChild(p);
+      let p=pathCache[id];
+      if(!p){
+        p=document.createElementNS('http://www.w3.org/2000/svg','path');
+        p.setAttribute('fill','none');
+        svgL.appendChild(p); pathCache[id]=p;
+      }
+      if(p.style.display!=='')p.style.display='';
+      const pathKey=`${x1}|${y1}|${x2}|${y2}|${c.stroke}|${depth(id)<=1}`;
+      if(p._lastPathKey!==pathKey||p._hiddenState){
+        p.setAttribute('d',`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+        p.setAttribute('stroke',c.stroke);
+        p.setAttribute('stroke-width',depth(id)<=1?'2':'1.5');
+        p.setAttribute('opacity',depth(id)<=1?'0.65':'0.45');
+        p._lastPathKey=pathKey; p._hiddenState=false;
+      }
     });
+    pathExisting.forEach(id=>{if(pathCache[id]){svgL.removeChild(pathCache[id]);delete pathCache[id];}});
 
     const existing=new Set(Object.keys(domCache));
     Object.keys(nodes).forEach(id=>{
-      if(isHidden(id))return; // 접힌 브랜치의 자손 노드는 DOM에서 제거 (existing cleanup에서 처리됨)
-      const n=nodes[id]; const c=getColor(id); const isRoot=!n.parentId; const isSel=id===sel;
+      existing.delete(id); // 삭제되지 않고 nodes에 존재함 (숨겨진 상태여도 캐시는 유지)
+      if(isHidden(id)){ // 접힌 브랜치의 자손 노드는 DOM은 유지한 채 표시만 끔 (재확장 시 재생성 없이 빠르게 복원)
+        const el=domCache[id]; if(el&&el.style.display!=='none'){el.style.display='none';el._hiddenState=true;}
+        return;
+      }
+      const n=nodes[id]; const c=getColor(id,rootKids); const isRoot=!n.parentId; const isSel=id===sel;
       const nh=n.h||H_BASE;
       let el=domCache[id];
       if(!el){
         el=document.createElement('div');
         el.className='node-el '+(isRoot?'root-node':'child-node');
         const lbl=document.createElement('div'); lbl.className='node-label';
-        el.appendChild(lbl);
+        el.appendChild(lbl); el._lbl=lbl;
         const badge=document.createElement('div'); badge.className='collapse-badge';
         badge.addEventListener('mousedown',ev=>ev.stopPropagation());
         badge.addEventListener('click',ev=>{ev.stopPropagation();toggleCollapse(id);});
-        el.appendChild(badge);
+        el.appendChild(badge); el._badge=badge;
         // 리사이즈 핸들 8방향
         ['nw','n','ne','w','e','sw','s','se'].forEach(dir=>{
           const h=document.createElement('div');
@@ -496,42 +558,56 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
         attachEvents(id,el);
       }
       const isSelected = isSel && !editing;
-      el.style.cssText=`left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${nh}px;background:${c.fill};border-color:${c.stroke};color:${c.text};outline:${isSel?'2.5px solid '+c.stroke:(id===dropTarget?'2.5px dashed #185FA5':'none')};outline-offset:${(isSel||id===dropTarget)?'1px':'0'}`;
-      if(id===dropTarget) el.style.background='#e8f1fb';
-      // selected 클래스로 리사이즈 핸들 표시
-      if(isSel && editing!==id) el.classList.add('selected');
-      else el.classList.remove('selected');
-      const lbl=el.querySelector('.node-label');
-      lbl.innerHTML=textToHTML(n.text);
+      const styleKey=`${n.x}|${n.y}|${n.w}|${nh}|${c.fill}|${c.stroke}|${c.text}|${isSel}|${id===dropTarget}|${editing===id}`;
+      if(el._lastStyleKey!==styleKey||el._hiddenState){
+        el.style.cssText=`left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${nh}px;background:${c.fill};border-color:${c.stroke};color:${c.text};outline:${isSel?'2.5px solid '+c.stroke:(id===dropTarget?'2.5px dashed #185FA5':'none')};outline-offset:${(isSel||id===dropTarget)?'1px':'0'}`;
+        if(id===dropTarget) el.style.background='#e8f1fb';
+        // selected 클래스로 리사이즈 핸들 표시
+        if(isSel && editing!==id) el.classList.add('selected');
+        else el.classList.remove('selected');
+        el._lastStyleKey=styleKey; el._hiddenState=false;
+      }
+      const lbl=el._lbl;
+      if(el._lastText!==n.text){lbl.innerHTML=textToHTML(n.text);el._lastText=n.text;}
       // 폰트 스타일 적용 (bold / fontLg / fontSm)
       const fspec=nodeFont(id).split(' ');
-      lbl.style.fontWeight=fspec[0];
-      lbl.style.fontSize=fspec[1];
+      if(el._lastFspec!==fspec.join(' ')){
+        lbl.style.fontWeight=fspec[0];
+        lbl.style.fontSize=fspec[1];
+        el._lastFspec=fspec.join(' ');
+      }
       // 편집 중이면 라벨 숨기기 (이중 텍스트 방지)
-      if(editing===id) lbl.classList.add('hidden');
-      else lbl.classList.remove('hidden');
+      const editHidden=editing===id;
+      if(el._lastEditHidden!==editHidden){
+        if(editHidden) lbl.classList.add('hidden'); else lbl.classList.remove('hidden');
+        el._lastEditHidden=editHidden;
+      }
 
       // ── 접힘 배지 ──
-      const badge=el.querySelector('.collapse-badge');
-      const childCount=kids(id).length;
-      if(n.collapsed&&childCount>0){
-        badge.textContent=childCount;
-        badge.style.display='flex';
-        badge.style.borderColor=c.stroke; badge.style.color=c.stroke;
-        const isLeft=n.side==='left';
-        badge.style.left=isLeft?'-14px':'auto';
-        badge.style.right=isLeft?'auto':'-14px';
-      } else {
-        badge.style.display='none';
+      const badge=el._badge;
+      const childCount=(childMap[id]||[]).length;
+      const isLeft=n.side==='left';
+      const badgeSig=(n.collapsed&&childCount>0)?`${childCount}|${c.stroke}|${isLeft}`:'';
+      if(el._lastBadgeSig!==badgeSig){
+        if(badgeSig){
+          badge.textContent=childCount;
+          badge.style.display='flex';
+          badge.style.borderColor=c.stroke; badge.style.color=c.stroke;
+          badge.style.left=isLeft?'-14px':'auto';
+          badge.style.right=isLeft?'auto':'-14px';
+        } else {
+          badge.style.display='none';
+        }
+        el._lastBadgeSig=badgeSig;
       }
 
       // ── 이미지 렌더링 ──
       const imgKey=n.images&&n.images.length?n.images.map(i=>`${i.w}x${i.h}:${i.src.length}`).join('|'):'';
       if(el.dataset.imgKey!==imgKey){
         el.dataset.imgKey=imgKey;
-        let ic=el.querySelector('.img-container');
+        let ic=el._ic;
         if(n.images&&n.images.length){
-          if(!ic){ic=document.createElement('div');ic.className='img-container';el.insertBefore(ic,el.querySelector('.rh'));}
+          if(!ic){ic=document.createElement('div');ic.className='img-container';el.insertBefore(ic,el.querySelector('.rh'));el._ic=ic;}
           ic.innerHTML='';
           n.images.forEach((imgData,imgIdx)=>{
             const wrap=document.createElement('div'); wrap.className='node-img-wrap';
@@ -551,7 +627,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
             attachImgResize(id,irh,imgIdx);
             ic.appendChild(wrap);
           });
-        } else if(ic){ic.remove();}
+        } else if(ic){ic.remove();el._ic=null;}
       }
       existing.delete(id);
     });
@@ -565,7 +641,11 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     sideTimer=setTimeout(()=>{sideInd.style.display='none';},900);
   }
 
-  function setSideRecursive(id,side){nodes[id].side=side; kids(id).forEach(c=>setSideRecursive(c,side));}
+  function setSideRecursive(id,side,childMap){
+    childMap=childMap||buildChildMap();
+    nodes[id].side=side;
+    (childMap[id]||[]).forEach(c=>setSideRecursive(c,side,childMap));
+  }
 
   // 두 노드가 겹치는지 판단
   function hitTest(draggingId, targetId){
@@ -734,6 +814,37 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     },{passive:false});
   }
 
+  // 주어진 폭(font 반영)에서 텍스트가 실제로 몇 줄로 줄바꿈되는지 계산 (word-break:break-word와 유사하게 시뮬레이션)
+  function wrapLineCount(text,maxWidth,font){
+    _mx.font=font;
+    const paragraphs=(text||'').split('\n');
+    let total=0;
+    paragraphs.forEach(para=>{
+      if(para===''){total++;return;}
+      const words=para.split(' ');
+      let line='';
+      words.forEach(word=>{
+        if(_mx.measureText(word).width>maxWidth){
+          // 단어 자체가 한 줄에 안 들어가면 문자 단위로 쪼갬
+          if(line){total++;line='';}
+          let chunk='';
+          for(const ch of word){
+            const test=chunk+ch;
+            if(_mx.measureText(test).width>maxWidth && chunk){total++;chunk=ch;}
+            else chunk=test;
+          }
+          line=chunk;
+          return;
+        }
+        const test=line?line+' '+word:word;
+        if(_mx.measureText(test).width>maxWidth && line){total++;line=word;}
+        else line=test;
+      });
+      total++; // 이 문단의 마지막 줄
+    });
+    return Math.max(1,total);
+  }
+
   function attachResizeHandle(id,hEl,dir){
     hEl.addEventListener('mousedown',e=>{
       e.stopPropagation(); e.preventDefault();
@@ -742,6 +853,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       const startX=e.clientX, startY=e.clientY;
       const origW=nodes[id].w, origH=nodes[id].h||H_BASE;
       const origX=nodes[id].x, origY=nodes[id].y;
+      const widthOnly=(dir==='e'||dir==='w'); // 폭만 조절하는 핸들인지 (모서리/상하 핸들 제외)
       const onMove=ev=>{
         const dx=(ev.clientX-startX)/sc, dy=(ev.clientY-startY)/sc;
         let newW=origW, newH=origH, newX=origX, newY=origY;
@@ -749,6 +861,17 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
         if(dir.includes('w')){newW=Math.max(64,origW-dx);newX=origX+origW-newW;}
         if(dir.includes('s')) newH=Math.max(H_BASE,origH+dy);
         if(dir.includes('n')){newH=Math.max(H_BASE,origH-dy);newY=origY+origH-newH;}
+        if(widthOnly){
+          // 폭만 드래그할 때는 줄바꿈된 텍스트 양에 맞춰 높이를 자동으로 재계산
+          const n=nodes[id];
+          const font=nodeFont(id)+` -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
+          const availW=Math.max(20,newW-(PADX*2+8));
+          const lineCount=wrapLineCount(n.text,availW,font);
+          let textH=Math.max(H_BASE, lineCount*LINE_H+14);
+          let imgH=0;
+          if(n.images&&n.images.length){n.images.forEach(img=>{imgH+=(img.h||120)+6;});imgH+=8;}
+          newH=textH+imgH;
+        }
         nodes[id].w=newW; nodes[id].h=newH;
         nodes[id].x=newX; nodes[id].y=newY;
         nodes[id].manualX=newX; nodes[id].manualY=newY;
@@ -845,7 +968,33 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(hasImg){e.preventDefault();handlePaste(e);}
   });
 
-  function selectNode(id){if(editing&&editing!==id)commitEdit();sel=id;renderDOM();closeAll();}
+  // 선택 상태만 가볍게 갱신 (해당 노드만 갱신, 전체 재렌더링 없음 — 대용량 트리에서 선택 속도 개선)
+  function updateNodeSelectVisual(id){
+    const el=domCache[id]; const n=nodes[id];
+    if(!el||!n||el.style.display==='none')return;
+    const c=getColor(id);
+    const isSel=id===sel;
+    const nh=n.h||H_BASE;
+    const styleKey=`${n.x}|${n.y}|${n.w}|${nh}|${c.fill}|${c.stroke}|${c.text}|${isSel}|${id===dropTarget}|${editing===id}`;
+    el.style.cssText=`left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${nh}px;background:${c.fill};border-color:${c.stroke};color:${c.text};outline:${isSel?'2.5px solid '+c.stroke:(id===dropTarget?'2.5px dashed #185FA5':'none')};outline-offset:${(isSel||id===dropTarget)?'1px':'0'}`;
+    if(id===dropTarget) el.style.background='#e8f1fb';
+    el._lastStyleKey=styleKey;
+    if(isSel && editing!==id) el.classList.add('selected');
+    else el.classList.remove('selected');
+  }
+  function selectNode(id){
+    if(editing&&editing!==id)commitEdit();
+    const prev=sel;
+    if(prev===id){closeAll();return;}
+    sel=id;
+    if(editing===null){ // 편집 중이 아니면 전체 재렌더링 없이 이전/새 선택 노드만 갱신
+      if(prev)updateNodeSelectVisual(prev);
+      updateNodeSelectVisual(id);
+    } else {
+      renderDOM();
+    }
+    closeAll();
+  }
 
   function startEdit(){
     if(!sel)return; editing=sel;
@@ -932,7 +1081,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(!sel||!nodes[sel]||!nodes[sel].parentId)return;
     commitEdit(); snap();
     const pid=nodes[sel].parentId, sb=sibs(sel), idx=sb.indexOf(sel);
-    function rm(id){kids(id).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
+    const childMap=buildChildMap();
+    function rm(id){(childMap[id]||[]).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
     rm(sel);
     const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
     sel=rem.length?rem[Math.max(0,idx-1)]:pid;
@@ -972,7 +1122,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function zoomStep(d){setZoom(sc*(d>0?1.2:1/1.2))}
 
   function fitView(){
-    const allN=Object.values(nodes); if(!allN.length)return;
+    const allN=Object.keys(nodes).filter(id=>!isHidden(id)).map(id=>nodes[id]); if(!allN.length)return;
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     allN.forEach(n=>{x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x+n.w);y1=Math.max(y1,n.y+(n.h||H_BASE));});
     const W=app.clientWidth-80, Hv=app.clientHeight-120;
@@ -980,6 +1130,16 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     sc=ns; tx=(app.clientWidth-(x1-x0)*sc)/2-x0*sc; ty=(app.clientHeight-(y1-y0)*sc)/2-y0*sc;
     world.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;
     document.getElementById('zoom-lbl').textContent=Math.round(sc*100)+'%';
+    updInpPos();
+  }
+
+  // 현재 확대 배율은 유지한 채, 특정 노드가 화면 중앙에 오도록 뷰포트만 이동 (접기/펼치기 후 선택 노드 위치 보정용)
+  function centerOnNode(id){
+    const n=nodes[id]; if(!n||isHidden(id))return;
+    const cx=n.x+n.w/2, cy=n.y+(n.h||H_BASE)/2;
+    tx=app.clientWidth/2-cx*sc;
+    ty=app.clientHeight/2-cy*sc;
+    world.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;
     updInpPos();
   }
 
@@ -1077,12 +1237,33 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   window.addEventListener('touchend',e=>{if(e.touches.length<2)_pinch=null;});
 
   function closeAll(){
-    ['color-panel','export-panel','github-panel'].forEach(id=>document.getElementById(id).style.display='none');
+    ['color-panel','export-panel','github-panel','hint-panel'].forEach(id=>document.getElementById(id).style.display='none');
+  }
+  function toggleHintPanel(){
+    const hp=document.getElementById('hint-panel');
+    document.getElementById('color-panel').style.display='none';
+    document.getElementById('export-panel').style.display='none';
+    document.getElementById('github-panel').style.display='none';
+    hp.style.display=hp.style.display==='block'?'none':'block';
+  }
+  const TB_LAYOUT_KEY='mmToolbarVertical';
+  function applyToolbarLayout(vertical){
+    const tb=document.getElementById('toolbar');
+    const icon=document.getElementById('btn-layout-icon');
+    tb.classList.toggle('vertical',vertical);
+    if(icon)icon.className='ti '+(vertical?'ti-layout-navbar':'ti-layout-sidebar-left-expand');
+  }
+  function toggleToolbarLayout(){
+    const tb=document.getElementById('toolbar');
+    const vertical=!tb.classList.contains('vertical');
+    applyToolbarLayout(vertical);
+    try{localStorage.setItem(TB_LAYOUT_KEY,vertical?'1':'0');}catch(e){}
   }
   function toggleColorPanel(){
     const cp=document.getElementById('color-panel');
     document.getElementById('export-panel').style.display='none';
     document.getElementById('github-panel').style.display='none';
+    document.getElementById('hint-panel').style.display='none';
     const open=cp.style.display==='block';
     cp.style.display=open?'none':'block';
     if(!open){
@@ -1101,6 +1282,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const ep=document.getElementById('export-panel');
     document.getElementById('color-panel').style.display='none';
     document.getElementById('github-panel').style.display='none';
+    document.getElementById('hint-panel').style.display='none';
     if(fromSaveConfirm===true){ep.style.display='block';}
     else{ep.style.display=ep.style.display==='block'?'none':'block';}
   }
@@ -1108,6 +1290,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const gp=document.getElementById('github-panel');
     document.getElementById('color-panel').style.display='none';
     document.getElementById('export-panel').style.display='none';
+    document.getElementById('hint-panel').style.display='none';
     const open=gp.style.display==='block';
     gp.style.display=open?'none':'block';
     if(!open){ghFillConfigForm(); ghStatus('');}
@@ -1153,7 +1336,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function applyColorSubtree(){
     if(!sel)return; snap();
     const c=nodes[sel].cc||getColor(sel);
-    function dn(id){nodes[id].cc={...c};kids(id).forEach(dn);}
+    const childMap=buildChildMap();
+    function dn(id){nodes[id].cc={...c};(childMap[id]||[]).forEach(dn);}
     dn(sel); renderDOM();
   }
   function resetColor(){if(!sel)return;snap();delete nodes[sel].cc;renderDOM();}
@@ -1194,7 +1378,11 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       }
       snap(); nodes=newNodes; seq=newSeq2;
       Object.keys(domCache).forEach(id=>{if(domCache[id])nodeL.removeChild(domCache[id]);});
-      domCache={}; sel=root();
+      domCache={};
+      Object.keys(pathCache).forEach(id=>{if(pathCache[id])svgL.removeChild(pathCache[id]);});
+      pathCache={};
+      sel=root();
+      setFileTitle(filename);
       render(); fitView(); closeAll();
     } catch(e){alert('파일을 읽을 수 없어요: '+e.message);}
   }
@@ -1226,6 +1414,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function exportPNG(){
     closeAll();
     const fname=safeFilename(nodes[root()].text);
+    const rootKids=kids(root());
     const allN=Object.keys(nodes).filter(id=>!isHidden(id)).map(id=>nodes[id]);
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     allN.forEach(n=>{x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x+n.w);y1=Math.max(y1,n.y+(n.h||H_BASE));});
@@ -1238,7 +1427,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     Object.keys(nodes).forEach(id=>{
       if(isHidden(id))return;
       const n=nodes[id]; const pn=n.parentId?nodes[n.parentId]:null; if(!pn)return;
-      const c=getColor(id); const side=n.side||'right';
+      const c=getColor(id,rootKids); const side=n.side||'right';
       const nh=n.h||H_BASE, pnh=pn.h||H_BASE;
       const ax=side==='right'?pn.x+pn.w+ox:pn.x+ox, ay=pn.y+pnh/2+oy;
       const bx=side==='right'?n.x+ox:n.x+n.w+ox,   by=n.y+nh/2+oy;
@@ -1249,7 +1438,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     // 노드 박스
     Object.keys(nodes).forEach(id=>{
       if(isHidden(id))return;
-      const n=nodes[id]; const c=getColor(id); const isRoot=!n.parentId;
+      const n=nodes[id]; const c=getColor(id,rootKids); const isRoot=!n.parentId;
       const nh=n.h||H_BASE; const x=n.x+ox, y=n.y+oy, r2=isRoot?10:8;
       ctx.beginPath(); ctx.roundRect(x,y,n.w,nh,r2); ctx.fillStyle=c.fill; ctx.fill();
       ctx.strokeStyle=c.stroke; ctx.lineWidth=isRoot?1.5:1; ctx.stroke();
@@ -1300,9 +1489,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   function exportMM(){
     closeAll(); const r=root();
     const fname=safeFilename(nodes[r].text);
+    const childMap=buildChildMap();
     function esc(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
     function toXML(id,d){
-      const n=nodes[id]; const ch=kids(id); const ind='  '.repeat(d);
+      const n=nodes[id]; const ch=childMap[id]||[]; const ind='  '.repeat(d);
       const pos=d===1?` POSITION="${n.side||'right'}"` : '';
       if(!ch.length)return `${ind}<node TEXT="${esc(n.text)}"${pos}/>`;
       return `${ind}<node TEXT="${esc(n.text)}"${pos}>\n${ch.map(c=>toXML(c,d+1)).join('\n')}\n${ind}</node>`;
@@ -1376,6 +1566,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       if(!res.ok){ghStatus('저장 실패: '+(data.message||res.status),true);return;}
       _ghCurrent={path,sha:data.content&&data.content.sha,name:filename};
       isDirty=false;
+      setFileTitle(filename);
       ghStatus('저장 완료: '+filename,false,true);
     }catch(e){
       ghStatus('저장 실패: '+e.message,true);
@@ -1391,7 +1582,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   async function ghSaveAs(){
     const c=ghLoadConfig();
     if(!c||!c.token||!c.repo){ghStatus('먼저 GitHub 설정을 저장해주세요.',true);return;}
-    const def=safeFilename(nodes[root()].text)+'.json';
+    const baseName=currentFileName?currentFileName.replace(/\.json$/i,''):safeFilename(nodes[root()].text);
+    const def=baseName+'.json';
     const name=prompt('저장할 파일 이름',def);
     if(!name)return;
     const filename=name.toLowerCase().endsWith('.json')?name:name+'.json';
@@ -1460,7 +1652,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
         body:JSON.stringify({message:'마인드맵 삭제: '+name,sha,branch:c.branch})});
       const data=await res.json().catch(()=>({}));
       if(!res.ok){ghStatus('삭제 실패: '+(data.message||res.status),true);return;}
-      if(_ghCurrent&&_ghCurrent.path===path)_ghCurrent=null;
+      if(_ghCurrent&&_ghCurrent.path===path){_ghCurrent=null;setFileTitle('');}
       await ghShowList();
       ghStatus('삭제 완료: '+name,false,true);
     }catch(e){
@@ -1491,7 +1683,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       const delRes=await fetch(ghContentsUrl(c,oldPath),{method:'DELETE',headers:ghHeaders(c,true),
         body:JSON.stringify({message:'이름 변경으로 기존 파일 삭제: '+oldName,sha:oldSha,branch:c.branch})});
       if(!delRes.ok){await ghShowList();ghStatus('새 파일은 만들어졌지만 기존 파일 삭제에 실패했어요. 직접 정리해주세요.',true);return;}
-      if(_ghCurrent&&_ghCurrent.path===oldPath)_ghCurrent={path:newPath,sha:putData.content&&putData.content.sha,name:newName};
+      if(_ghCurrent&&_ghCurrent.path===oldPath){_ghCurrent={path:newPath,sha:putData.content&&putData.content.sha,name:newName};setFileTitle(newName);}
       await ghShowList();
       ghStatus('이름 변경 완료: '+newName,false,true);
     }catch(e){
@@ -1502,13 +1694,14 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── 드래그 후 자식 재배치 (현재 노드 위치 기준) ──
   function relayoutChildren(id){
     const n=nodes[id];
-    const rch=kids(id).filter(c=>nodes[c].side!=='left');
-    const lch=kids(id).filter(c=>nodes[c].side==='left');
+    const childMap=buildChildMap();
+    const rch=(childMap[id]||[]).filter(c=>nodes[c].side!=='left');
+    const lch=(childMap[id]||[]).filter(c=>nodes[c].side==='left');
     function placeRel(cid,x,y,side){
       const cn=nodes[cid]; cn.w=nodeW(cid); cn.h=nodeH(cid);
-      const ch=cn.collapsed?[]:kids(cid).filter(k=>nodes[k].side===side);
+      const ch=cn.collapsed?[]:(childMap[cid]||[]).filter(k=>nodes[k].side===side);
       if(!ch.length){cn.x=x;cn.y=y;cn.manualX=x;cn.manualY=y;return cn.h;}
-      const heights=ch.map(c=>calcSH(c,side));
+      const heights=ch.map(c=>calcSH(c,side,childMap));
       const total=heights.reduce((a,b)=>a+b,0)+(ch.length-1)*VGAP;
       const blockH=Math.max(cn.h,total);
       cn.x=x; cn.y=y+(blockH-cn.h)/2; cn.manualX=cn.x; cn.manualY=cn.y;
@@ -1516,10 +1709,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       ch.forEach((c,i)=>{placeRel(c,side==='right'?x+cn.w+HGAP:x-nodeW(c)-HGAP,cy,side);cy+=heights[i]+VGAP;});
       return blockH;
     }
-    const rH=rch.reduce((a,c)=>a+calcSH(c,'right'),0)+Math.max(0,rch.length-1)*VGAP;
+    const rH=rch.reduce((a,c)=>a+calcSH(c,'right',childMap),0)+Math.max(0,rch.length-1)*VGAP;
     let rcy=n.y+n.h/2-rH/2;
     rch.forEach(c=>{const h=placeRel(c,n.x+n.w+HGAP,rcy,'right');rcy+=h+VGAP;});
-    const lH=lch.reduce((a,c)=>a+calcSH(c,'left'),0)+Math.max(0,lch.length-1)*VGAP;
+    const lH=lch.reduce((a,c)=>a+calcSH(c,'left',childMap),0)+Math.max(0,lch.length-1)*VGAP;
     let lcy=n.y+n.h/2-lH/2;
     lch.forEach(c=>{const h=placeRel(c,n.x-nodeW(c)-HGAP,lcy,'left');lcy+=h+VGAP;});
   }
@@ -1527,7 +1720,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── Markdown 변환 ──────────────────────────────────────────────
 
   // 노드 서브트리 → Markdown 텍스트 (들여쓰기 목록 형식)
-  function toMarkdown(id, depth){
+  function toMarkdown(id, depth, childMap){
+    childMap=childMap||buildChildMap();
     const n=nodes[id];
     const indent='  '.repeat(depth);
     const textLines=(n.text||'').split('\n');
@@ -1535,7 +1729,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     const cont=textLines.slice(1).map(l=>`${indent}  ${l}`);
     let md=[head,...cont].join('\n');
     if(!n.collapsed){
-      const childMd=kids(id).map(c=>toMarkdown(c,depth+1)).join('\n');
+      const childMd=(childMap[id]||[]).map(c=>toMarkdown(c,depth+1,childMap)).join('\n');
       if(childMd) md+='\n'+childMd;
     }
     return md;
@@ -1669,7 +1863,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     _clipboard._ts=Date.now();
     snap();
     const pid=nodes[sel].parentId, sb=sibs(sel), idx=sb.indexOf(sel);
-    function rm(id){kids(id).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
+    const childMap=buildChildMap();
+    function rm(id){(childMap[id]||[]).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
     rm(sel);
     const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
     sel=rem.length?rem[Math.max(0,idx-1)]:pid;
@@ -1753,7 +1948,13 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   document.addEventListener('keydown', e=>{
     const ctrl=e.ctrlKey||e.metaKey;
     if(!ctrl)return;
-    if(editing)return; // 노드 텍스트 편집 중에는 브라우저 기본 동작 유지
+    if(editing){
+      // 편집 중 텍스트 일부를 드래그로 선택해뒀으면, 그 부분에 대한 브라우저 기본 복사/잘라내기/붙여넣기를 우선 존중
+      const hasSelection=inp.selectionStart!==inp.selectionEnd;
+      if(hasSelection && (e.key==='c'||e.key==='x'||e.key==='v'))return;
+      if(e.key!=='c'&&e.key!=='x'&&e.key!=='v'&&e.key!=='z')return; // 그 외 조합키는 텍스트 입력용으로 유지
+      commitEdit(); app.focus(); // 편집을 확정하고 노드 단위 단축키로 처리
+    }
     const at=document.activeElement;
     if(at&&(at.tagName==='INPUT'||at.tagName==='TEXTAREA'))return; // 다른 입력창(토큰 등)에 포커스가 있으면 브라우저 기본 복사/붙여넣기 유지
     if(e.key==='z'){e.preventDefault();e.stopPropagation();undo();}
@@ -1808,8 +2009,10 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     applyCustomColor,applyColorSubtree,resetColor,
     importFromDevice,
     exportPNG,exportTXT,exportMM,exportJSON,zoomStep,fitView,optimize,
-    ghSaveConfig,ghSaveCurrent,ghSaveAs,ghShowList};
+    ghSaveConfig,ghSaveCurrent,ghSaveAs,ghShowList,toggleToolbarLayout,toggleHintPanel};
   window.SC=SC;
+
+  try{applyToolbarLayout(localStorage.getItem(TB_LAYOUT_KEY)==='1');}catch(e){}
 
   const r=nid();
   nodes[r]={text:'중심 주제',parentId:null};
