@@ -125,6 +125,8 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <button class="tb" onclick="MM.addSibling(1)"><i class="ti ti-arrow-down" style="font-size:12px"></i> 하</button>
     <button class="tb" onclick="MM.addSibling(-1)"><i class="ti ti-arrow-up" style="font-size:12px"></i> 상</button>
     <div class="sep"></div>
+    <button class="tb" id="btn-fold" onclick="MM.toggleCollapse(MM.getSel())" title="/ : 가지 접기·펴기"><i class="ti ti-fold" style="font-size:12px"></i> fold</button>
+    <div class="sep"></div>
     <button class="tb danger" onclick="MM.deleteNode()"><i class="ti ti-trash" style="font-size:12px"></i> del</button>
     <div class="sep"></div>
     <button class="tb" id="btn-copy" onclick="MM.copyNode()"><i class="ti ti-copy" style="font-size:12px"></i> copy</button>
@@ -145,7 +147,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <button class="tb" id="btn-layout" onclick="MM.toggleToolbarLayout()" title="메뉴 위치 전환"><i class="ti ti-layout-sidebar-left-expand" id="btn-layout-icon" style="font-size:12px"></i> 바 위치</button>
   </div>
 
-  <div id="hint-panel">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | /: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
+  <div id="hint-panel">두 손가락: 이동 | 핀치: 줌 | Enter: 아래 노드 | Tab: 자식 | Shift+Tab: 부모 삽입 | / 또는 fold 버튼: 브랜치 접기·펼치기 | Ctrl+C/X/V: 복사·잘라내기·붙여넣기 | 편집 중 Enter: 완성 | Alt+Enter: 줄바꿈</div>
 
   <div id="zoom-bar">
     <button class="tb" onclick="MM.zoomStep(-1)" style="padding:2px 6px;height:22px">−</button>
@@ -329,12 +331,13 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   // ── 브랜치 접기/펼치기 ('/' 키) ──
   function toggleCollapse(id){
     if(!id||!nodes[id])return;
-    if(!kids(id).length)return; // 자식이 없으면 접을 게 없음
+    if(!kids(id).length){showSideIndicator('하위 가지 없음');return;} // 자식이 없으면 접을 게 없음
     snap();
     nodes[id].collapsed=!nodes[id].collapsed;
     if(sel&&isHidden(sel))sel=id; // 선택된 노드가 숨겨지면 접은 노드로 선택 이동
     render();
     if(sel)centerOnNode(sel); // 배치가 바뀌어도 선택된 노드가 화면 중앙에 보이도록 보정
+    showSideIndicator(nodes[id].collapsed?'접음':'펼침');
   }
 
   // 텍스트만의 높이 (이미지 제외)
@@ -2003,7 +2006,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   });
 
   window.MM={addChild,addChildLeft,addSibling,deleteNode,startEdit,
-    copyNode,cutNode,pasteNode,toggleCollapse,
+    copyNode,cutNode,pasteNode,toggleCollapse,getSel:()=>sel,
     setNodeBold,setFontSize,resetFont,
     toggleColorPanel,toggleExportPanel,toggleGithubPanel,
     applyCustomColor,applyColorSubtree,resetColor,
