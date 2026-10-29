@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>마인드맵</title>
+<title>마인드맵 v30</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.10.0/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -155,7 +155,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     <button class="tb" onclick="MM.zoomStep(1)" style="padding:2px 6px;height:22px">+</button>
   </div>
   <div id="file-title"></div>
-  <div id="copyright">© Dr. Hannjoo Lee, KSC/PCC · hannjoo@gmail.com</div>
+  <div id="copyright">v30 · © Dr. Hannjoo Lee, KSC/PCC · hannjoo@gmail.com</div>
 
   <div id="color-panel">
     <div class="panel-title">노드 모양</div>
@@ -381,7 +381,17 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   }
 
   function snap(){hist.push(JSON.stringify(nodes));if(hist.length>80)hist.shift();updUndo();isDirty=true;}
-  function undo(){if(!hist.length)return;nodes=JSON.parse(hist.pop());if(!nodes[sel])sel=root();updUndo();render();}
+  function clearCaches(){
+    Object.keys(domCache).forEach(id=>{if(domCache[id])nodeL.removeChild(domCache[id]);});domCache={};
+    Object.keys(pathCache).forEach(id=>{if(pathCache[id])svgL.removeChild(pathCache[id]);});pathCache={};
+  }
+  function undo(){
+    if(!hist.length)return;
+    if(editing){inp.style.display='none';editing=null;} // 편집 중이면 편집 취소 후 되돌리기
+    nodes=JSON.parse(hist.pop());
+    if(!nodes[sel]||isHidden(sel))sel=root();
+    clearCaches(); updUndo(); render();
+  }
   function updUndo(){document.getElementById('btn-undo').style.opacity=hist.length?'1':'0.4'}
 
   // ── 저장 확인 다이얼로그 ──
@@ -694,58 +704,61 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     subtree(id).forEach(sid=>{delete nodes[sid].manualX; delete nodes[sid].manualY;});
   }
 
+  // ── 노드 드래그 (마우스·터치 공용) ──
+  // 시작 좌표와 이동 임계값(px)을 받아 {move(x,y), end()}를 돌려준다
+  function beginNodeDrag(id,startX,startY,threshold){
+    const st=subtree(id), origPos={};
+    st.forEach(sid=>{origPos[sid]={x:nodes[sid].x,y:nodes[sid].y};});
+    let started=false, prevSide=null, sideChanged=false;
+    return {
+      move(cx,cy){
+        const dx=(cx-startX)/sc, dy=(cy-startY)/sc;
+        if(!started&&(Math.abs(dx*sc)>threshold||Math.abs(dy*sc)>threshold)){
+          started=true; snap(); vp.classList.add('drag-node');
+          st.forEach(sid=>{if(domCache[sid])domCache[sid].classList.add(sid===id?'dragging':'drag-ghost');});
+        }
+        if(!started)return;
+        st.forEach(sid=>{
+          nodes[sid].x=nodes[sid].manualX=origPos[sid].x+dx;
+          nodes[sid].y=nodes[sid].manualY=origPos[sid].y+dy;
+        });
+        // 좌우 전환: 루트 중심 기준 (자식 가지 방향 포함)
+        const rn=nodes[root()];
+        const newSide=(nodes[id].x+nodes[id].w/2)<(rn.x+rn.w/2)?'left':'right';
+        if(newSide!==prevSide){
+          prevSide=newSide; sideChanged=true; setSideRecursive(id,newSide);
+          showSideIndicator(newSide==='left'?'← 왼쪽 가지로 전환':'→ 오른쪽 가지로 전환');
+        }
+        dropTarget=findDropTarget(id);
+        renderDOM();
+      },
+      end(){
+        vp.classList.remove('drag-node');
+        st.forEach(sid=>{if(domCache[sid])domCache[sid].classList.remove('dragging','drag-ghost');});
+        if(started&&dropTarget){reparent(id,dropTarget);dropTarget=null;render();return;}
+        dropTarget=null;
+        if(!started)return;
+        if(sideChanged){ // 자식들 위치를 새 방향 기준으로 재배치
+          st.filter(s=>s!==id).forEach(s=>{delete nodes[s].manualX;delete nodes[s].manualY;});
+          relayoutChildren(id);
+        }
+        renderDOM();
+      }
+    };
+  }
+
   function attachEvents(id,el){
-    let dStarted=false,startX=0,startY=0,origPos={},prevSide=null;
     el.addEventListener('mousedown',e=>{
       if(e.button!==0)return; e.stopPropagation();
       if(e.target.classList.contains('node-link'))return;
       selectNode(id);
-      if(nodes[id].parentId===null)return;
-      const st=subtree(id);
-      startX=e.clientX; startY=e.clientY; origPos={}; prevSide=null; dStarted=false;
-      let sideChanged=false;
-      st.forEach(sid=>{origPos[sid]={x:nodes[sid].x,y:nodes[sid].y};});
-      const onMove=ev=>{
-        const dx=(ev.clientX-startX)/sc, dy=(ev.clientY-startY)/sc;
-        if(!dStarted&&(Math.abs(dx*sc)>5||Math.abs(dy*sc)>5)){
-          dStarted=true; snap(); vp.classList.add('drag-node');
-          st.forEach(sid=>{if(domCache[sid])domCache[sid].classList.add(sid===id?'dragging':'drag-ghost');});
-        }
-        if(!dStarted)return;
-        st.forEach(sid=>{
-          nodes[sid].manualX=origPos[sid].x+dx;
-          nodes[sid].manualY=origPos[sid].y+dy;
-          nodes[sid].x=nodes[sid].manualX;
-          nodes[sid].y=nodes[sid].manualY;
-        });
-        // 좌우 전환: 루트 중심 기준으로 모든 노드에 적용 (자식 가지 방향 포함)
-        {
-          const rn=nodes[root()];
-          const rootCX=rn.x+rn.w/2;
-          const nodeCX=nodes[id].x+nodes[id].w/2;
-          const newSide=nodeCX<rootCX?'left':'right';
-          if(newSide!==prevSide){prevSide=newSide;sideChanged=true;setSideRecursive(id,newSide);showSideIndicator(newSide==='left'?'← 왼쪽 가지로 전환':'→ 오른쪽 가지로 전환');}
-        }
-        const newDrop=findDropTarget(id);
-        if(newDrop!==dropTarget){dropTarget=newDrop;renderDOM();}else renderDOM();
-      };
+      if(!nodes[id].parentId)return; // 루트 드래그 불가
+      const drag=beginNodeDrag(id,e.clientX,e.clientY,5);
+      const onMove=ev=>drag.move(ev.clientX,ev.clientY);
       const onUp=()=>{
         window.removeEventListener('mousemove',onMove);
         window.removeEventListener('mouseup',onUp);
-        vp.classList.remove('drag-node');
-        st.forEach(sid=>{if(domCache[sid]){domCache[sid].classList.remove('dragging');domCache[sid].classList.remove('drag-ghost');}});
-        if(dStarted&&dropTarget){reparent(id,dropTarget);dropTarget=null;render();}
-        else{
-          dropTarget=null;
-          if(dStarted){
-            if(sideChanged){
-              // 자식들 위치를 새 방향 기준으로 재배치
-              st.filter(s=>s!==id).forEach(s=>{delete nodes[s].manualX;delete nodes[s].manualY;});
-              relayoutChildren(id);
-            }
-            renderDOM();
-          }
-        }
+        drag.end();
       };
       window.addEventListener('mousemove',onMove);
       window.addEventListener('mouseup',onUp);
@@ -758,59 +771,23 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     el.addEventListener('touchstart',e=>{
       if(e.touches.length!==1)return;
       e.stopPropagation();
-      // URL 링크 터치 → 새 탭 열기
-      if(e.target.classList.contains('node-link')){
+      if(e.target.classList.contains('node-link')){ // URL 링크 터치 → 새 탭 열기
         e.preventDefault(); window.open(e.target.href,'_blank'); return;
       }
       const t=e.touches[0];
       const now=Date.now(); const isDoubleTap=(now-lastTap)<320; lastTap=now;
       selectNode(id); app.focus();
       if(isDoubleTap){e.preventDefault(); startEdit(); return;}
-      if(!nodes[id]||nodes[id].parentId===null)return; // 루트 드래그 불가
-      const st=subtree(id);
-      startX=t.clientX; startY=t.clientY; origPos={}; prevSide=null; dStarted=false;
-      let sideChanged=false;
-      st.forEach(sid=>{origPos[sid]={x:nodes[sid].x,y:nodes[sid].y};});
+      if(!nodes[id]||!nodes[id].parentId)return; // 루트 드래그 불가
+      const drag=beginNodeDrag(id,t.clientX,t.clientY,10);
       const onTMove=ev=>{
         if(ev.touches.length!==1)return;
-        ev.preventDefault();
-        const tt=ev.touches[0];
-        const dx=(tt.clientX-startX)/sc, dy=(tt.clientY-startY)/sc;
-        if(!dStarted&&(Math.abs(dx*sc)>10||Math.abs(dy*sc)>10)){
-          dStarted=true; snap(); vp.classList.add('drag-node');
-          st.forEach(sid=>{if(domCache[sid])domCache[sid].classList.add(sid===id?'dragging':'drag-ghost');});
-        }
-        if(!dStarted)return;
-        st.forEach(sid=>{
-          nodes[sid].manualX=origPos[sid].x+dx; nodes[sid].manualY=origPos[sid].y+dy;
-          nodes[sid].x=nodes[sid].manualX; nodes[sid].y=nodes[sid].manualY;
-        });
-        // 좌우 전환: 루트 중심 기준으로 모든 노드에 적용 (자식 가지 방향 포함)
-        {
-          const rn=nodes[root()];
-          const rootCX=rn.x+rn.w/2; const nodeCX=nodes[id].x+nodes[id].w/2;
-          const newSide=nodeCX<rootCX?'left':'right';
-          if(newSide!==prevSide){prevSide=newSide;sideChanged=true;setSideRecursive(id,newSide);showSideIndicator(newSide==='left'?'← 왼쪽 가지로 전환':'→ 오른쪽 가지로 전환');}
-        }
-        const newDrop=findDropTarget(id);
-        if(newDrop!==dropTarget){dropTarget=newDrop;renderDOM();}else renderDOM();
+        ev.preventDefault(); drag.move(ev.touches[0].clientX,ev.touches[0].clientY);
       };
       const onTEnd=()=>{
         el.removeEventListener('touchmove',onTMove);
         el.removeEventListener('touchend',onTEnd);
-        vp.classList.remove('drag-node');
-        st.forEach(sid=>{if(domCache[sid]){domCache[sid].classList.remove('dragging');domCache[sid].classList.remove('drag-ghost');}});
-        if(dStarted&&dropTarget){reparent(id,dropTarget);dropTarget=null;render();}
-        else{
-          dropTarget=null;
-          if(dStarted){
-            if(sideChanged){
-              st.filter(s=>s!==id).forEach(s=>{delete nodes[s].manualX;delete nodes[s].manualY;});
-              relayoutChildren(id);
-            }
-            renderDOM();
-          }
-        }
+        drag.end();
       };
       el.addEventListener('touchmove',onTMove,{passive:false});
       el.addEventListener('touchend',onTEnd);
@@ -1010,7 +987,9 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     if(!editing||!nodes[editing]){inp.style.display='none';return;}
     const n=nodes[editing];
     const th=nodeTextH(editing); // 텍스트 영역만
-    const fs=(!nodes[editing].parentId?14:13)*sc;
+    const fspec=nodeFont(editing).split(' '); // 노드와 같은 굵기·크기
+    const fs=parseFloat(fspec[1])*sc;
+    inp.style.fontWeight=fspec[0];
     inp.style.left=(tx+n.x*sc)+'px';
     inp.style.top=(ty+n.y*sc)+'px';
     inp.style.width=(n.w*sc)+'px';
@@ -1080,15 +1059,18 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     nodes[id]._o=at; sel=id; render(); startEdit();
   }
 
+  // 선택 노드와 하위 전체를 지우고, 선택을 이웃 형제(없으면 부모)로 옮김
+  function removeSelSubtree(){
+    const pid=nodes[sel].parentId, idx=sibs(sel).indexOf(sel);
+    subtree(sel).forEach(id=>{delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}});
+    const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
+    sel=rem.length?rem[Math.max(0,idx-1)]:pid;
+  }
+
   function deleteNode(){
     if(!sel||!nodes[sel]||!nodes[sel].parentId)return;
     commitEdit(); snap();
-    const pid=nodes[sel].parentId, sb=sibs(sel), idx=sb.indexOf(sel);
-    const childMap=buildChildMap();
-    function rm(id){(childMap[id]||[]).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
-    rm(sel);
-    const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
-    sel=rem.length?rem[Math.max(0,idx-1)]:pid;
+    removeSelSubtree();
     render(); app.focus();
   }
 
@@ -1109,10 +1091,17 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     Object.values(nodes).forEach(n=>{delete n.manualX;delete n.manualY;});
     doLayout();
     Object.keys(nodes).forEach(id=>{const n=nodes[id];n.x=n._ax||0;n.y=n._ay||0;n.w=nodeW(id);n.h=nodeH(id);});
-    renderDOM(); fitView();
+    renderDOM();
+    centerOnNode(selVisible()?sel:root()); // 배율 그대로, 선택 노드(없으면 중심 주제)를 화면 중앙에
   }
 
+  function selVisible(){return !!(sel&&nodes[sel]&&!isHidden(sel));}
   function setZoom(newSc,cx,cy){
+    if(selVisible()){ // 선택 노드를 화면 중앙에 두고 확대·축소
+      sc=Math.min(4,Math.max(0.2,newSc));
+      document.getElementById('zoom-lbl').textContent=Math.round(sc*100)+'%';
+      centerOnNode(sel); return;
+    }
     cx=cx??app.clientWidth/2; cy=cy??app.clientHeight/2;
     const bx=(cx-tx)/sc, by=(cy-ty)/sc;
     sc=Math.min(4,Math.max(0.2,newSc));
@@ -1229,6 +1218,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       const t1=e.touches[0], t2=e.touches[1];
       const dist=Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
       const newSc=Math.min(4,Math.max(0.2,_pinch.sc0*dist/_pinch.dist));
+      if(selVisible()){setZoom(newSc);return;} // 선택 노드를 화면 중앙에
       const bx=(_pinch.cx-_pinch.tx0)/_pinch.sc0;
       const by=(_pinch.cy-_pinch.ty0)/_pinch.sc0;
       sc=newSc; tx=_pinch.cx-bx*sc; ty=_pinch.cy-by*sc;
@@ -1345,6 +1335,15 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
   }
   function resetColor(){if(!sel)return;snap();delete nodes[sel].cc;renderDOM();}
 
+  function hex6(c){
+    c=(c||'#000000').trim();
+    if(/^#[0-9a-f]{8}$/i.test(c)){
+      const a=parseInt(c.slice(7,9),16)/255;
+      return '#'+[1,3,5].map(i=>{const v=parseInt(c.slice(i,i+2),16);return Math.round(v*a+255*(1-a)).toString(16).padStart(2,'0');}).join('');
+    }
+    return c.slice(0,7);
+  }
+
   // ── 파일 파싱 ──────────────────────────────────────────
   function parseMM(xmlStr){
     const parser=new DOMParser();
@@ -1357,6 +1356,19 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
       const pos=el.getAttribute('POSITION')||el.getAttribute('position')||sideHint||'right';
       const ord=parentId?Array.from(el.parentElement.children).filter(c=>c.tagName==='node').indexOf(el):0;
       newNodes[id]={text,parentId:parentId||null,_o:ord,side:parentId?pos:undefined};
+      const nn=newNodes[id];
+      const col=el.getAttribute('COLOR'), bg=el.getAttribute('BACKGROUND_COLOR');
+      const edgeEl=Array.from(el.children).find(c=>c.tagName==='edge');
+      const edgeCol=edgeEl&&edgeEl.getAttribute('COLOR');
+      if(col&&bg) nn.cc={fill:bg,stroke:edgeCol||col,text:col};
+      if(el.getAttribute('FOLDED')==='true') nn.collapsed=true;
+      const fontEl=Array.from(el.children).find(c=>c.tagName==='font');
+      if(fontEl){
+        if(fontEl.getAttribute('BOLD')==='true') nn.bold=true;
+        const size=parseInt(fontEl.getAttribute('SIZE'));
+        const base=parentId?13:14;
+        if(size>=base+2) nn.fontLg=true; else if(size&&size<=base-2) nn.fontSm=true;
+      }
       Array.from(el.children).filter(c=>c.tagName==='node').forEach(child=>walk(child,id,pos));
       return id;
     }
@@ -1380,10 +1392,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
         newNodes=parseJSON(text); newSeq2=Math.max(0,...Object.keys(newNodes).map(k=>parseInt(k.replace('n',''))||0));
       }
       snap(); nodes=newNodes; seq=newSeq2;
-      Object.keys(domCache).forEach(id=>{if(domCache[id])nodeL.removeChild(domCache[id]);});
-      domCache={};
-      Object.keys(pathCache).forEach(id=>{if(pathCache[id])svgL.removeChild(pathCache[id]);});
-      pathCache={};
+      clearCaches();
       sel=root();
       setFileTitle(filename);
       render(); fitView(); closeAll();
@@ -1493,12 +1502,22 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     closeAll(); const r=root();
     const fname=safeFilename(nodes[r].text);
     const childMap=buildChildMap();
-    function esc(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'&#10;');}
     function toXML(id,d){
       const n=nodes[id]; const ch=childMap[id]||[]; const ind='  '.repeat(d);
-      const pos=d===1?` POSITION="${n.side||'right'}"` : '';
-      if(!ch.length)return `${ind}<node TEXT="${esc(n.text)}"${pos}/>`;
-      return `${ind}<node TEXT="${esc(n.text)}"${pos}>\n${ch.map(c=>toXML(c,d+1)).join('\n')}\n${ind}</node>`;
+      let attr=d===1?` POSITION="${n.side||'right'}"` : '';
+      if(n.cc) attr+=` COLOR="${hex6(n.cc.text)}" BACKGROUND_COLOR="${hex6(n.cc.fill)}"`;
+      if(n.collapsed&&ch.length) attr+=` FOLDED="true"`;
+      const inner=[];
+      if(n.cc) inner.push(`${ind}  <edge COLOR="${hex6(n.cc.stroke)}"/>`);
+      if(n.bold||n.fontLg||n.fontSm){
+        const base=d===0?14:13;
+        const size=n.fontLg?base+3:(n.fontSm?base-3:base);
+        inner.push(`${ind}  <font NAME="SansSerif" SIZE="${size}"${n.bold?' BOLD="true"':''}/>`);
+      }
+      ch.forEach(c=>inner.push(toXML(c,d+1)));
+      if(!inner.length)return `${ind}<node TEXT="${esc(n.text)}"${attr}/>`;
+      return `${ind}<node TEXT="${esc(n.text)}"${attr}>\n${inner.join('\n')}\n${ind}</node>`;
     }
     download(new Blob([`<map version="1.0.1">\n${toXML(r,0)}\n</map>`],{type:'application/octet-stream'}),fname+'.mm');
     isDirty=false; _runPending();
@@ -1776,21 +1795,15 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
 
   // 시스템 클립보드에 텍스트 쓰기 (복사)
   function writeSystemClipboard(text){
-    try{
-      navigator.clipboard.writeText(text).catch(()=>{
-        const ta=document.createElement('textarea');
-        ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
-        document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-      });
-    }catch(e){
+    const fallback=()=>{
       try{
         const ta=document.createElement('textarea');
         ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
         document.body.appendChild(ta); ta.select();
         document.execCommand('copy'); document.body.removeChild(ta);
-      }catch(e2){}
-    }
+      }catch(e){}
+    };
+    try{navigator.clipboard.writeText(text).catch(fallback);}catch(e){fallback();}
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -1832,14 +1845,13 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     };
   }catch(e){}
 
-  // 2초 폴링: 탭 전환 시에도 다른 탭 복사 내용 즉시 반영
-  setInterval(_syncFromLS, 2000);
+  // 다른 탭으로 돌아왔을 때 최신 복사 내용 반영 (폴링 대신)
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)_syncFromLS();});
 
   function _broadcastClip(clip){
     try{_bc&&_bc.postMessage({clip});}catch(e){}
     _saveLS(clip);
   }
-  // ────────────────────────────────────────────────────────────── // {nodesData:{id:nodeObj,...}, rootId}
 
   // 서브트리 전체를 깊은 복사
   function cloneSubtree(rootId){
@@ -1865,12 +1877,7 @@ svg{overflow:visible;position:absolute;top:0;left:0;pointer-events:none}
     _clipboard=cloneSubtree(sel);
     _clipboard._ts=Date.now();
     snap();
-    const pid=nodes[sel].parentId, sb=sibs(sel), idx=sb.indexOf(sel);
-    const childMap=buildChildMap();
-    function rm(id){(childMap[id]||[]).forEach(rm);delete nodes[id];if(domCache[id]){nodeL.removeChild(domCache[id]);delete domCache[id];}}
-    rm(sel);
-    const rem=kids(pid); rem.forEach((k,i)=>nodes[k]._o=i);
-    sel=rem.length?rem[Math.max(0,idx-1)]:pid;
+    removeSelSubtree();
     _broadcastClip(_clipboard); _updatePasteBtn(); render(); showSideIndicator('잘라내기됨');
   }
 
